@@ -29,8 +29,8 @@ export async function POST(request: NextRequest) {
       ? govSearchTerms
       : []
     
-    // Combine both, prioritizing variety
-    const allTerms = [...privateTerms.slice(0, 4), ...govTerms.slice(0, 3)]
+    // Use MORE search terms to get diverse results
+    const allTerms = [...privateTerms.slice(0, 10), ...govTerms.slice(0, 5)]
     
     console.log('Combined search terms:', allTerms)
     
@@ -38,8 +38,8 @@ export async function POST(request: NextRequest) {
     const seenIds = new Set<string>()
     
     // Search for EACH term separately to get diverse results
-    for (const term of allTerms.slice(0, 7)) { // Max 7 searches for variety
-      const jobs = await searchAdzuna(term, location)
+    for (const term of allTerms.slice(0, 12)) { // Search up to 12 different terms
+      const jobs = await searchJobs(term, location)
       console.log(`Search for "${term}" returned ${jobs.length} jobs`)
       
       // Add jobs we haven't seen yet
@@ -66,8 +66,8 @@ export async function POST(request: NextRequest) {
     // Sort by match score
     allJobs.sort((a, b) => b.matchScore - a.matchScore)
 
-    // Return top 20
-    return NextResponse.json({ jobs: allJobs.slice(0, 20) })
+    // Return top 75 jobs
+    return NextResponse.json({ jobs: allJobs.slice(0, 75) })
 
   } catch (error) {
     console.error('Error searching jobs:', error)
@@ -75,18 +75,19 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function searchAdzuna(searchTerm: string, location: string): Promise<any[]> {
+async function searchJobs(searchTerm: string, location: string): Promise<any[]> {
   const appId = process.env.ADZUNA_APP_ID
   const appKey = process.env.ADZUNA_APP_KEY
   
   if (!appId || !appKey) {
-    console.log('Adzuna: Missing API keys')
+    console.log('Job API: Missing API keys')
     return []
   }
 
   try {
     const country = 'us'
-    let url = `https://api.adzuna.com/v1/api/jobs/${country}/search/1?app_id=${appId}&app_key=${appKey}&results_per_page=10&what=${encodeURIComponent(searchTerm)}&content-type=application/json`
+    // Get more results per search (15 instead of 10)
+    let url = `https://api.adzuna.com/v1/api/jobs/${country}/search/1?app_id=${appId}&app_key=${appKey}&results_per_page=15&what=${encodeURIComponent(searchTerm)}&content-type=application/json`
     
     if (location && location.trim() && location.toLowerCase() !== 'remote') {
       url += `&where=${encodeURIComponent(location)}`
@@ -115,7 +116,7 @@ async function searchAdzuna(searchTerm: string, location: string): Promise<any[]
       salary_max: job.salary_max,
       created: job.created,
       redirect_url: job.redirect_url,
-      matchedTerm: searchTerm // Track which search term found this job
+      matchedTerm: searchTerm
     }))
   } catch (error) {
     console.error('Job search error:', error)
