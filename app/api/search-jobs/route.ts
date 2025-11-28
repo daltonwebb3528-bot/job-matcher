@@ -115,16 +115,8 @@ async function searchUSAJobs(skills: string[], targetRoles: string[], location: 
   }
 
   try {
-    // Build search query - focus on LE-relevant federal jobs
-    const keywords = [
-      'security',
-      'investigator', 
-      'compliance',
-      'analyst',
-      'specialist'
-    ]
+    const keywords = ['security', 'investigator', 'compliance', 'analyst', 'specialist']
     
-    // Add target roles if available
     if (targetRoles && targetRoles.length > 0) {
       keywords.unshift(...targetRoles.slice(0, 2))
     }
@@ -133,7 +125,6 @@ async function searchUSAJobs(skills: string[], targetRoles: string[], location: 
     
     let url = `https://data.usajobs.gov/api/search?Keyword=${encodeURIComponent(searchKeyword)}&ResultsPerPage=15`
     
-    // Add location if provided
     if (location) {
       url += `&LocationName=${encodeURIComponent(location)}`
     }
@@ -147,7 +138,7 @@ async function searchUSAJobs(skills: string[], targetRoles: string[], location: 
     })
     
     if (!response.ok) {
-      console.error('USAJobs API error:', response.status, await response.text())
+      console.error('USAJobs API error:', response.status)
       return []
     }
 
@@ -186,21 +177,18 @@ function calculateMatchScore(title: string, description: string, skills: string[
   const jobText = `${title} ${description}`.toLowerCase()
   let score = 50
   
-  // Check for target role matches
   for (const role of (targetRoles || [])) {
     if (jobText.includes(role.toLowerCase())) {
       score += 15
     }
   }
   
-  // Check for skill matches
   for (const skill of (skills || [])) {
     if (jobText.includes(skill.toLowerCase())) {
       score += 5
     }
   }
   
-  // Boost for LE-relevant keywords
   const leKeywords = ['security', 'investigation', 'law enforcement', 'criminal', 'compliance', 'fraud', 'risk', 'protection']
   for (const keyword of leKeywords) {
     if (jobText.includes(keyword)) {
@@ -218,215 +206,101 @@ function getMockJobs(skills: string[], targetRoles: string[]): any[] {
       title: 'Corporate Security Manager',
       company: 'Fortune 500 Financial Services',
       location: 'Dallas, TX',
-      description: 'Seeking an experienced security professional to lead our corporate security program. Responsibilities include managing a team of security specialists, conducting risk assessments, developing security policies, and coordinating with law enforcement agencies. The ideal candidate has 10+ years of experience in law enforcement or military with leadership experience. Must have excellent communication skills and ability to work with executive leadership. Experience with investigations, threat assessment, and emergency response required.',
+      description: 'Seeking an experienced security professional to lead our corporate security program. Responsibilities include managing a team of security specialists, conducting risk assessments, developing security policies, and coordinating with law enforcement agencies.',
       salary_min: 95000,
       salary_max: 130000,
       created: new Date().toISOString(),
       redirect_url: 'https://example.com/job/1',
-      source: 'Featured',
-      matchScore: 92
+      source: 'Featured'
     },
     {
       id: 'mock-2',
       title: 'Fraud Investigator',
       company: 'Major Insurance Company',
       location: 'Remote',
-      description: 'Join our Special Investigations Unit as a Fraud Investigator. You will investigate suspected fraudulent insurance claims, conduct interviews, gather evidence, prepare detailed reports, and testify when needed. Looking for candidates with law enforcement background, particularly those with detective or investigative experience. Strong analytical skills, attention to detail, and excellent written communication required. We value experience in interviewing techniques and evidence documentation.',
+      description: 'Join our Special Investigations Unit as a Fraud Investigator. You will investigate suspected fraudulent insurance claims, conduct interviews, gather evidence, prepare detailed reports, and testify when needed.',
       salary_min: 75000,
       salary_max: 95000,
       created: new Date().toISOString(),
       redirect_url: 'https://example.com/job/2',
-      source: 'Featured',
-      matchScore: 88
+      source: 'Featured'
     },
     {
       id: 'mock-3',
       title: 'Director of Loss Prevention',
       company: 'National Retail Chain',
       location: 'Chicago, IL',
-      description: 'Lead loss prevention strategy across 200+ retail locations. Manage regional LP managers, develop training programs, analyze theft patterns, coordinate with law enforcement, and implement prevention technologies. Requires strong leadership background with experience managing teams. Former law enforcement with retail LP experience preferred. Must be able to build relationships with store leadership and present to executive team.',
+      description: 'Lead loss prevention strategy across 200+ retail locations. Manage regional LP managers, develop training programs, analyze theft patterns, coordinate with law enforcement.',
       salary_min: 110000,
       salary_max: 145000,
       created: new Date().toISOString(),
       redirect_url: 'https://example.com/job/3',
-      source: 'Featured',
-      matchScore: 85
+      source: 'Featured'
     },
     {
       id: 'mock-4',
       title: 'Compliance Investigator',
       company: 'Healthcare Organization',
       location: 'Phoenix, AZ',
-      description: 'Investigate compliance concerns, conduct internal investigations, interview employees, document findings, and recommend corrective actions. Work closely with Legal and HR departments. Ideal candidate has background in investigations with strong interview skills. Must maintain confidentiality and handle sensitive situations professionally. Experience in healthcare compliance a plus but not required.',
+      description: 'Investigate compliance concerns, conduct internal investigations, interview employees, document findings, and recommend corrective actions. Work closely with Legal and HR departments.',
       salary_min: 70000,
       salary_max: 90000,
       created: new Date().toISOString(),
       redirect_url: 'https://example.com/job/4',
-      source: 'Featured',
-      matchScore: 82
+      source: 'Featured'
     },
     {
       id: 'mock-5',
       title: 'Risk Manager',
       company: 'Tech Startup',
       location: 'Austin, TX',
-      description: 'Build and manage enterprise risk management program. Identify potential risks, develop mitigation strategies, create business continuity plans, and manage vendor security assessments. Looking for analytical problem-solvers with security or law enforcement background. Experience with crisis management and emergency response valuable. Must communicate effectively with technical and non-technical stakeholders.',
+      description: 'Build and manage enterprise risk management program. Identify potential risks, develop mitigation strategies, create business continuity plans.',
       salary_min: 85000,
       salary_max: 115000,
       created: new Date().toISOString(),
       redirect_url: 'https://example.com/job/5',
-      source: 'Featured',
-      matchScore: 78
+      source: 'Featured'
     },
     {
       id: 'mock-6',
       title: 'Corporate Investigator',
       company: 'Global Consulting Firm',
       location: 'New York, NY',
-      description: 'Conduct complex corporate investigations including fraud, misconduct, and due diligence. Interview witnesses, analyze documents, write detailed reports for clients. Travel required. Former law enforcement investigators with federal or detective experience highly desired. Must have excellent writing skills and professional demeanor for client-facing work.',
+      description: 'Conduct complex corporate investigations including fraud, misconduct, and due diligence. Interview witnesses, analyze documents, write detailed reports for clients.',
       salary_min: 90000,
       salary_max: 140000,
       created: new Date().toISOString(),
       redirect_url: 'https://example.com/job/6',
-      source: 'Featured',
-      matchScore: 90
+      source: 'Featured'
     },
     {
       id: 'mock-7',
       title: 'Safety & Security Coordinator',
       company: 'University',
       location: 'Denver, CO',
-      description: 'Coordinate campus safety programs, conduct security assessments, develop emergency response plans, and train staff on safety procedures. Work with campus police and local agencies. Ideal for former law enforcement looking for stable hours and good benefits. Experience in training or community relations a plus.',
+      description: 'Coordinate campus safety programs, conduct security assessments, develop emergency response plans, and train staff on safety procedures.',
       salary_min: 60000,
       salary_max: 75000,
       created: new Date().toISOString(),
       redirect_url: 'https://example.com/job/7',
-      source: 'Featured',
-      matchScore: 75
+      source: 'Featured'
     },
     {
       id: 'mock-8',
       title: 'Threat Intelligence Analyst',
       company: 'Defense Contractor',
       location: 'Washington, DC',
-      description: 'Analyze threat intelligence, prepare briefings for clients, monitor global security situations, and provide recommendations. Requires security clearance or ability to obtain. Former law enforcement with intelligence or counter-terrorism background preferred. Strong analytical and communication skills required.',
+      description: 'Analyze threat intelligence, prepare briefings for clients, monitor global security situations, and provide recommendations. Requires security clearance.',
       salary_min: 85000,
       salary_max: 120000,
       created: new Date().toISOString(),
       redirect_url: 'https://example.com/job/8',
-      source: 'Featured',
-      matchScore: 80
+      source: 'Featured'
     }
   ]
   
   return mockJobs.map(job => ({
     ...job,
     matchScore: calculateMatchScore(job.title, job.description, skills || [], targetRoles || [])
-  })).sort((a, b) => b.matchScore - a.matchScore)
-}
-
-function getMockJobs(skills: string[], targetRoles: string[]): any[] {
-  const mockJobs = [
-    {
-      id: '1',
-      title: 'Corporate Security Manager',
-      company: 'Fortune 500 Financial Services',
-      location: 'Dallas, TX',
-      description: 'Seeking an experienced security professional to lead our corporate security program. Responsibilities include managing a team of security specialists, conducting risk assessments, developing security policies, and coordinating with law enforcement agencies. The ideal candidate has 10+ years of experience in law enforcement or military with leadership experience. Must have excellent communication skills and ability to work with executive leadership. Experience with investigations, threat assessment, and emergency response required.',
-      salary_min: 95000,
-      salary_max: 130000,
-      created: new Date().toISOString(),
-      redirect_url: 'https://example.com/job/1',
-      matchScore: 92
-    },
-    {
-      id: '2',
-      title: 'Fraud Investigator',
-      company: 'Major Insurance Company',
-      location: 'Remote',
-      description: 'Join our Special Investigations Unit as a Fraud Investigator. You will investigate suspected fraudulent insurance claims, conduct interviews, gather evidence, prepare detailed reports, and testify when needed. Looking for candidates with law enforcement background, particularly those with detective or investigative experience. Strong analytical skills, attention to detail, and excellent written communication required. We value experience in interviewing techniques and evidence documentation.',
-      salary_min: 75000,
-      salary_max: 95000,
-      created: new Date().toISOString(),
-      redirect_url: 'https://example.com/job/2',
-      matchScore: 88
-    },
-    {
-      id: '3',
-      title: 'Director of Loss Prevention',
-      company: 'National Retail Chain',
-      location: 'Chicago, IL',
-      description: 'Lead loss prevention strategy across 200+ retail locations. Manage regional LP managers, develop training programs, analyze theft patterns, coordinate with law enforcement, and implement prevention technologies. Requires strong leadership background with experience managing teams. Former law enforcement with retail LP experience preferred. Must be able to build relationships with store leadership and present to executive team.',
-      salary_min: 110000,
-      salary_max: 145000,
-      created: new Date().toISOString(),
-      redirect_url: 'https://example.com/job/3',
-      matchScore: 85
-    },
-    {
-      id: '4',
-      title: 'Compliance Investigator',
-      company: 'Healthcare Organization',
-      location: 'Phoenix, AZ',
-      description: 'Investigate compliance concerns, conduct internal investigations, interview employees, document findings, and recommend corrective actions. Work closely with Legal and HR departments. Ideal candidate has background in investigations with strong interview skills. Must maintain confidentiality and handle sensitive situations professionally. Experience in healthcare compliance a plus but not required.',
-      salary_min: 70000,
-      salary_max: 90000,
-      created: new Date().toISOString(),
-      redirect_url: 'https://example.com/job/4',
-      matchScore: 82
-    },
-    {
-      id: '5',
-      title: 'Risk Manager',
-      company: 'Tech Startup',
-      location: 'Austin, TX',
-      description: 'Build and manage enterprise risk management program. Identify potential risks, develop mitigation strategies, create business continuity plans, and manage vendor security assessments. Looking for analytical problem-solvers with security or law enforcement background. Experience with crisis management and emergency response valuable. Must communicate effectively with technical and non-technical stakeholders.',
-      salary_min: 85000,
-      salary_max: 115000,
-      created: new Date().toISOString(),
-      redirect_url: 'https://example.com/job/5',
-      matchScore: 78
-    },
-    {
-      id: '6',
-      title: 'Corporate Investigator',
-      company: 'Global Consulting Firm',
-      location: 'New York, NY',
-      description: 'Conduct complex corporate investigations including fraud, misconduct, and due diligence. Interview witnesses, analyze documents, write detailed reports for clients. Travel required. Former law enforcement investigators with federal or detective experience highly desired. Must have excellent writing skills and professional demeanor for client-facing work.',
-      salary_min: 90000,
-      salary_max: 140000,
-      created: new Date().toISOString(),
-      redirect_url: 'https://example.com/job/6',
-      matchScore: 90
-    },
-    {
-      id: '7',
-      title: 'Safety & Security Coordinator',
-      company: 'University',
-      location: 'Denver, CO',
-      description: 'Coordinate campus safety programs, conduct security assessments, develop emergency response plans, and train staff on safety procedures. Work with campus police and local agencies. Ideal for former law enforcement looking for stable hours and good benefits. Experience in training or community relations a plus.',
-      salary_min: 60000,
-      salary_max: 75000,
-      created: new Date().toISOString(),
-      redirect_url: 'https://example.com/job/7',
-      matchScore: 75
-    },
-    {
-      id: '8',
-      title: 'Threat Intelligence Analyst',
-      company: 'Defense Contractor',
-      location: 'Washington, DC',
-      description: 'Analyze threat intelligence, prepare briefings for clients, monitor global security situations, and provide recommendations. Requires security clearance or ability to obtain. Former law enforcement with intelligence or counter-terrorism background preferred. Strong analytical and communication skills required.',
-      salary_min: 85000,
-      salary_max: 120000,
-      created: new Date().toISOString(),
-      redirect_url: 'https://example.com/job/8',
-      matchScore: 80
-    }
-  ]
-  
-  return mockJobs.map(job => ({
-    ...job,
-    matchScore: calculateMatchScore(job as unknown as AdzunaJob, skills || [], targetRoles || [])
   })).sort((a, b) => b.matchScore - a.matchScore)
 }
