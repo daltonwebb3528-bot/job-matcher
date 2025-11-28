@@ -34,30 +34,39 @@ Create a response in this exact JSON format:
 {
   "summary": "A 3-4 sentence professional summary suitable for a resume, written in third person, highlighting their transferable skills without using law enforcement jargon",
   "translatedSkills": [
-    {"original": "Conducted investigations", "translated": "Led complex research initiatives requiring analytical thinking and attention to detail"},
-    {"original": "Interviewed suspects", "translated": "Conducted high-stakes interviews and negotiations with diverse stakeholders"},
-    {"original": "Wrote incident reports", "translated": "Created detailed documentation and reports under tight deadlines"},
-    {"original": "Supervised officers", "translated": "Managed and developed team members, conducted performance evaluations"},
-    {"original": "Testified in court", "translated": "Delivered presentations to executive stakeholders and decision-makers"}
+    {"original": "Original LE skill/duty", "translated": "Corporate equivalent description"},
+    ...at least 6 translations covering different skill areas
   ],
-  "targetRoles": ["5-7 specific job titles they should target based on their experience"],
-  "keywords": ["15-20 keywords they should include in their resume for ATS systems"]
+  "targetRoles": ["7-10 specific job titles they should target - include DIVERSE roles beyond just security"],
+  "keywords": ["20-25 keywords they should include in their resume for ATS systems"]
 }
 
-Make the translations specific to their actual experience. Be creative but accurate. Focus on transferable skills like:
-- Leadership and team management
-- Investigation = research and analysis
-- Report writing = documentation and communication
-- Crisis management = high-pressure decision making
-- Training = instructional design and development
-- Interviewing = stakeholder engagement and negotiation
+IMPORTANT: Law enforcement experience translates to MANY different career paths, not just security. Consider ALL of these:
+
+SECURITY PATH: Security Manager, Corporate Investigator, Loss Prevention, Compliance Officer
+MANAGEMENT PATH: Operations Manager, Program Manager, Project Manager, General Manager
+LEADERSHIP PATH: Team Lead, Department Manager, Director of Operations
+ANALYTICAL PATH: Business Analyst, Risk Analyst, Intelligence Analyst, Data Analyst
+PEOPLE PATH: HR Manager, Training Manager, Recruiter, Employee Relations
+CONSULTING PATH: Management Consultant, Risk Consultant, Safety Consultant
+PRODUCT PATH: Product Manager (if they gathered requirements, managed stakeholders, solved problems)
+GROWTH PATH: Business Development, Account Manager, Client Relations
+
+Look at their ACTUAL experience and suggest roles that truly fit. Someone who:
+- Managed large teams → Operations Manager, Program Manager
+- Did extensive training → Training Manager, L&D Specialist, Instructional Designer
+- Worked with community/stakeholders → Business Development, Account Manager, Customer Success
+- Analyzed data/patterns → Business Analyst, Intelligence Analyst
+- Managed budgets/resources → Operations Manager, Program Manager
+- Solved complex problems → Product Manager, Consultant
+- Wrote extensive documentation → Technical Writer, Compliance Analyst
 
 Respond ONLY with valid JSON.`
     } else {
       // From resume upload
       profilePrompt = `You are an expert career counselor specializing in helping law enforcement professionals transition to the private sector.
 
-Based on the following resume data, create a professional profile that translates their law enforcement experience into corporate-friendly language.
+Analyze this resume and create a professional profile that identifies ALL transferable skills and suggests the BEST matching career paths.
 
 RESUME DATA:
 - Skills detected: ${resumeData.skills?.join(', ') || 'Not specified'}
@@ -68,24 +77,36 @@ RESUME DATA:
 - Specializations: ${resumeData.specializations?.join(', ') || 'Not specified'}
 
 Resume excerpt:
-${resumeData.text?.slice(0, 3000) || 'Not available'}
+${resumeData.text?.slice(0, 4000) || 'Not available'}
 
 Create a response in this exact JSON format:
 {
-  "summary": "A 3-4 sentence professional summary suitable for a resume, written in third person, highlighting their transferable skills without using law enforcement jargon",
+  "summary": "A 3-4 sentence professional summary highlighting their STRONGEST transferable skills in corporate language",
   "translatedSkills": [
-    {"original": "Law enforcement skill/duty", "translated": "Corporate equivalent description"},
-    ...at least 5 translations
+    {"original": "LE skill from resume", "translated": "Corporate equivalent"},
+    ...at least 6 diverse translations
   ],
-  "targetRoles": ["5-7 specific job titles they should target based on their experience"],
-  "keywords": ["15-20 keywords they should include in their resume for ATS systems"]
+  "targetRoles": ["7-10 specific job titles - be DIVERSE based on their actual skills"],
+  "keywords": ["20-25 ATS-friendly keywords from their experience"]
 }
 
-Focus on translating LE jargon into business language. For example:
-- "Patrol" → "Field operations and client-facing responsibilities"
-- "Arrest" → "Conflict resolution and de-escalation"
-- "Badge" → Don't mention
-- "Suspect" → "Individual" or "stakeholder"
+CRITICAL: Read the resume carefully. Look for evidence of:
+- Product/program management (stakeholder management, requirements, roadmaps)
+- Operations (process improvement, resource allocation, efficiency)
+- Leadership (team size, mentoring, performance management)
+- Analysis (data, patterns, investigations, reports)
+- Training (curriculum development, instruction, coaching)
+- Client/stakeholder management (community relations, partnerships)
+- Strategy (planning, budgeting, long-term initiatives)
+
+If the resume shows strong product thinking, stakeholder management, or strategic planning, include roles like:
+- Product Manager
+- Program Manager  
+- Business Operations Manager
+- Strategy & Operations
+- Chief of Staff
+
+Don't default to just security roles. Match the actual experience to the best opportunities.
 
 Respond ONLY with valid JSON.`
     }
@@ -114,26 +135,30 @@ Respond ONLY with valid JSON.`
     } catch (e) {
       // Fallback
       result = {
-        summary: "Dedicated professional with extensive experience in high-pressure environments, complex investigations, and team leadership. Proven track record of managing critical situations while maintaining composure and delivering results. Skilled in stakeholder communication, detailed documentation, and cross-functional collaboration.",
+        summary: "Dedicated professional with extensive experience in high-pressure environments, complex problem-solving, and team leadership. Proven track record of managing critical situations while maintaining composure and delivering results. Skilled in stakeholder communication, detailed documentation, and cross-functional collaboration.",
         translatedSkills: [
-          { original: "Law enforcement experience", translated: "Operations and security management" },
-          { original: "Report writing", translated: "Technical documentation and communication" },
-          { original: "Investigations", translated: "Research, analysis, and problem-solving" },
-          { original: "Team supervision", translated: "Team leadership and development" },
-          { original: "Crisis response", translated: "Emergency management and decision-making" }
+          { original: "Law enforcement experience", translated: "Operations and program management" },
+          { original: "Report writing", translated: "Technical documentation and business communication" },
+          { original: "Investigations", translated: "Research, analysis, and strategic problem-solving" },
+          { original: "Team supervision", translated: "Team leadership, coaching, and performance management" },
+          { original: "Crisis response", translated: "Emergency management and high-stakes decision-making" },
+          { original: "Community relations", translated: "Stakeholder management and client relations" }
         ],
         targetRoles: [
+          "Operations Manager",
+          "Program Manager",
           "Security Manager",
           "Corporate Investigator", 
           "Compliance Analyst",
           "Risk Manager",
-          "Fraud Investigator",
-          "Loss Prevention Manager"
+          "Training Manager",
+          "Business Analyst"
         ],
         keywords: [
-          "security management", "risk assessment", "investigations", "compliance",
-          "team leadership", "stakeholder management", "documentation", "analysis",
-          "crisis management", "conflict resolution", "training", "operations"
+          "operations management", "program management", "team leadership",
+          "stakeholder management", "risk assessment", "investigations", "compliance",
+          "strategic planning", "process improvement", "documentation", "analysis",
+          "crisis management", "conflict resolution", "training", "project management"
         ]
       }
     }

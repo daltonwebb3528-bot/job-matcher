@@ -134,16 +134,18 @@ async function searchAdzuna(skills: string[], targetRoles: string[], keywords: s
 }
 
 async function searchUSAJobs(skills: string[], targetRoles: string[], keywords: string[], location: string): Promise<any[]> {
-  const apiKey = process.env.USAJOBS_API_KEY
-  const email = process.env.USAJOBS_EMAIL
+  const apiKey = process.env.USAJOBS_API_KEY?.trim()
+  const email = process.env.USAJOBS_EMAIL?.trim()
   
-  if (!apiKey) {
-    console.log('USAJobs: Missing API key')
+  console.log('USAJobs env check - API key exists:', !!apiKey, 'Email exists:', !!email)
+  
+  if (!apiKey || apiKey === '' || apiKey === 'undefined') {
+    console.log('USAJobs: Missing or invalid API key')
     return []
   }
   
-  if (!email) {
-    console.log('USAJobs: Missing email')
+  if (!email || email === '' || email === 'undefined') {
+    console.log('USAJobs: Missing or invalid email')
     return []
   }
 
@@ -160,9 +162,9 @@ async function searchUSAJobs(skills: string[], targetRoles: string[], keywords: 
       searchTerms.push(keywords[0])
     }
     
-    // Fallback
+    // Fallback - use broader terms that will return results
     if (searchTerms.length === 0) {
-      searchTerms.push('security specialist')
+      searchTerms.push('program manager')
     }
     
     const searchKeyword = searchTerms.slice(0, 2).join(' ')
