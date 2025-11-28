@@ -27,6 +27,8 @@ interface TranslatedProfile {
   summary: string
   translatedSkills: { original: string; translated: string }[]
   targetRoles: string[]
+  searchTerms?: string[]
+  govSearchTerms?: string[]
   keywords: string[]
 }
 
