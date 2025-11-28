@@ -1016,21 +1016,67 @@ export default function Home() {
               </div>
             )}
 
+            {/* Results header */}
+            <div className="flex items-center justify-between mb-4">
+              <div className="text-surface-400">
+                Found <span className="text-white font-semibold">{jobs.length}</span> matching positions
+              </div>
+              <div className="flex items-center gap-4 text-xs text-surface-500">
+                <span className="flex items-center gap-1">
+                  <span className="w-3 h-3 rounded-full bg-green-500/30 ring-1 ring-green-500"></span>
+                  85%+ Top Match
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="w-3 h-3 rounded-full bg-green-500/20"></span>
+                  70-84% Good
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="w-3 h-3 rounded-full bg-yellow-500/20"></span>
+                  50-69% Fair
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="w-3 h-3 rounded-full bg-red-500/20"></span>
+                  &lt;50% Low
+                </span>
+              </div>
+            </div>
+
             <div className="space-y-4">
               {jobs.map((job, index) => (
                 <div
                   key={job.id}
-                  className="p-6 bg-surface-900/50 border border-surface-800 rounded-2xl hover:border-surface-600 transition-all cursor-pointer group animate-slide-up"
+                  className={`p-6 bg-surface-900/50 border rounded-2xl hover:border-surface-600 transition-all cursor-pointer group animate-slide-up ${
+                    job.matchScore >= 85 
+                      ? 'border-green-500/50 ring-1 ring-green-500/30 bg-green-500/5' 
+                      : 'border-surface-800'
+                  }`}
                   style={{ animationDelay: `${index * 50}ms` }}
                   onClick={() => handleJobSelect(job)}
                 >
+                  {job.matchScore >= 85 && (
+                    <div className="flex items-center gap-2 mb-3 text-green-400 text-sm font-semibold">
+                      <span className="flex h-2 w-2 relative">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                      </span>
+                      TOP MATCH - Highly Recommended
+                    </div>
+                  )}
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-1">
                         <h3 className="font-semibold text-lg group-hover:text-brand-400 transition-colors">{job.title}</h3>
                         {job.matchScore && (
-                          <span className="px-2 py-0.5 bg-brand-500/20 text-brand-400 text-xs font-medium rounded-full">
-                            {job.matchScore}% match
+                          <span className={`px-2 py-0.5 text-xs font-bold rounded-full ${
+                            job.matchScore >= 85 
+                              ? 'bg-green-500/30 text-green-300 ring-2 ring-green-500/50' 
+                              : job.matchScore >= 70 
+                              ? 'bg-green-500/20 text-green-400' 
+                              : job.matchScore >= 50 
+                              ? 'bg-yellow-500/20 text-yellow-400' 
+                              : 'bg-red-500/20 text-red-400'
+                          }`}>
+                            {job.matchScore >= 85 ? '🔥 ' : ''}{job.matchScore}% match
                           </span>
                         )}
                       </div>

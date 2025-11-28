@@ -134,40 +134,63 @@ function calculateMatchScore(
 ): number {
   const jobText = `${title} ${description}`.toLowerCase()
   const titleLower = title.toLowerCase()
-  let score = 40 // Base score
+  const matchedTermLower = matchedTerm.toLowerCase()
+  let score = 30 // Lower base score for more range
   
-  // Boost if title closely matches the search term that found it
-  if (titleLower.includes(matchedTerm.toLowerCase())) {
-    score += 25
+  // EXACT title match with search term = huge boost (90%+ match)
+  if (titleLower === matchedTermLower || titleLower.includes(matchedTermLower)) {
+    score += 40
+  } else {
+    // Partial match - check if words overlap
+    const termWords = matchedTermLower.split(/\s+/)
+    const titleWords = titleLower.split(/\s+/)
+    let wordMatches = 0
+    for (const termWord of termWords) {
+      if (termWord.length > 2 && titleWords.some(tw => tw.includes(termWord) || termWord.includes(tw))) {
+        wordMatches++
+      }
+    }
+    if (wordMatches > 0) {
+      score += wordMatches * 15
+    }
   }
   
-  // Target role match
+  // Target role matches in title (strong signal)
+  let roleMatchCount = 0
   for (const role of (targetRoles || [])) {
     const roleLower = role.toLowerCase()
-    // Extract key words from role (e.g., "Director of Marketing" -> check for "marketing", "director")
     const roleWords = roleLower.split(/\s+/).filter(w => w.length > 3)
     for (const word of roleWords) {
       if (titleLower.includes(word)) {
-        score += 8
+        roleMatchCount++
       }
     }
   }
+  score += Math.min(roleMatchCount * 5, 20) // Cap at 20
   
-  // Keyword matches
+  // Keyword matches in description (medium signal)
+  let keywordMatches = 0
   for (const keyword of (keywords || [])) {
-    if (jobText.includes(keyword.toLowerCase())) {
-      score += 2
+    if (keyword.length > 3 && jobText.includes(keyword.toLowerCase())) {
+      keywordMatches++
     }
   }
+  score += Math.min(keywordMatches * 1.5, 15) // Cap at 15
   
-  // Skill matches
+  // Skill matches (lighter signal)
+  let skillMatches = 0
   for (const skill of (skills || [])) {
-    if (jobText.includes(skill.toLowerCase())) {
-      score += 2
+    if (skill.length > 3 && jobText.includes(skill.toLowerCase())) {
+      skillMatches++
     }
   }
+  score += Math.min(skillMatches, 10) // Cap at 10
   
-  return Math.min(Math.max(score, 25), 98)
+  // Add slight randomness for variety (±3 points)
+  score += Math.floor(Math.random() * 7) - 3
+  
+  // Ensure score is within bounds
+  return Math.min(Math.max(Math.round(score), 15), 98)
 }
 
 function getMockJobs(skills: string[], targetRoles: string[], keywords: string[]): any[] {
