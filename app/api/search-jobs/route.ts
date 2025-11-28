@@ -27,22 +27,27 @@ interface USAJobsResult {
 
 export async function POST(request: NextRequest) {
   try {
-    const { skills, targetRoles, location } = await request.json()
+    const { skills, targetRoles, keywords, location } = await request.json()
+    
+    console.log('Search request received:', { skills, targetRoles, keywords, location })
     
     const allJobs: any[] = []
     
     // Search Adzuna
-    const adzunaJobs = await searchAdzuna(skills, targetRoles, location)
+    const adzunaJobs = await searchAdzuna(skills, targetRoles, keywords, location)
+    console.log('Adzuna returned:', adzunaJobs.length, 'jobs')
     allJobs.push(...adzunaJobs)
     
     // Search USAJobs
-    const usaJobs = await searchUSAJobs(skills, targetRoles, location)
+    const usaJobs = await searchUSAJobs(skills, targetRoles, keywords, location)
+    console.log('USAJobs returned:', usaJobs.length, 'jobs')
     allJobs.push(...usaJobs)
     
     // If no API results, use mock data
     if (allJobs.length === 0) {
+      console.log('No API results, using mock data')
       return NextResponse.json({
-        jobs: getMockJobs(skills, targetRoles)
+        jobs: getMockJobs(skills, targetRoles, keywords)
       })
     }
     
@@ -57,24 +62,41 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function searchAdzuna(skills: string[], targetRoles: string[], location: string): Promise<any[]> {
+async function searchAdzuna(skills: string[], targetRoles: string[], keywords: string[], location: string): Promise<any[]> {
   const appId = process.env.ADZUNA_APP_ID
   const appKey = process.env.ADZUNA_APP_KEY
   
   if (!appId || !appKey) {
+    console.log('Adzuna: Missing API keys')
     return []
   }
 
   try {
-    const searchTerms = [
-      ...(targetRoles || []).slice(0, 3),
-      'security', 'investigator', 'compliance'
-    ].join(' ')
+    // Build smarter search using target roles first, then keywords
+    const searchTerms: string[] = []
+    
+    // Add target roles (most important)
+    if (targetRoles && targetRoles.length > 0) {
+      searchTerms.push(...targetRoles.slice(0, 3))
+    }
+    
+    // Add some keywords
+    if (keywords && keywords.length > 0) {
+      searchTerms.push(...keywords.slice(0, 2))
+    }
+    
+    // Fallback if nothing provided
+    if (searchTerms.length === 0) {
+      searchTerms.push('security', 'investigator')
+    }
+    
+    const query = searchTerms.join(' ')
+    console.log('Adzuna search query:', query)
     
     const country = 'us'
-    let url = `https://api.adzuna.com/v1/api/jobs/${country}/search/1?app_id=${appId}&app_key=${appKey}&results_per_page=15&what=${encodeURIComponent(searchTerms)}&content-type=application/json`
+    let url = `https://api.adzuna.com/v1/api/jobs/${country}/search/1?app_id=${appId}&app_key=${appKey}&results_per_page=15&what=${encodeURIComponent(query)}&content-type=application/json`
     
-    if (location) {
+    if (location && location.trim()) {
       url += `&where=${encodeURIComponent(location)}`
     }
     
@@ -87,6 +109,11 @@ async function searchAdzuna(skills: string[], targetRoles: string[], location: s
 
     const data = await response.json()
     
+    if (!data.results) {
+      console.log('Adzuna: No results in response')
+      return []
+    }
+    
     return data.results.map((job: AdzunaJob) => ({
       id: `adzuna-${job.id}`,
       title: job.title,
@@ -98,7 +125,7 @@ async function searchAdzuna(skills: string[], targetRoles: string[], location: s
       created: job.created,
       redirect_url: job.redirect_url,
       source: 'Adzuna',
-      matchScore: calculateMatchScore(job.title, job.description, skills, targetRoles)
+      matchScore: calculateMatchScore(job.title, job.description, skills, targetRoles, keywords)
     }))
   } catch (error) {
     console.error('Adzuna search error:', error)
@@ -106,30 +133,51 @@ async function searchAdzuna(skills: string[], targetRoles: string[], location: s
   }
 }
 
-async function searchUSAJobs(skills: string[], targetRoles: string[], location: string): Promise<any[]> {
+async function searchUSAJobs(skills: string[], targetRoles: string[], keywords: string[], location: string): Promise<any[]> {
   const apiKey = process.env.USAJOBS_API_KEY
   const email = process.env.USAJOBS_EMAIL
   
-  if (!apiKey || !email) {
+  if (!apiKey) {
+    console.log('USAJobs: Missing API key')
+    return []
+  }
+  
+  if (!email) {
+    console.log('USAJobs: Missing email')
     return []
   }
 
   try {
-    const keywords = ['security', 'investigator', 'compliance', 'analyst', 'specialist']
+    // Build search query from target roles and keywords
+    const searchTerms: string[] = []
     
     if (targetRoles && targetRoles.length > 0) {
-      keywords.unshift(...targetRoles.slice(0, 2))
+      // Use first target role as primary search
+      searchTerms.push(targetRoles[0])
     }
     
-    const searchKeyword = keywords.slice(0, 3).join(' ')
+    if (keywords && keywords.length > 0) {
+      searchTerms.push(keywords[0])
+    }
+    
+    // Fallback
+    if (searchTerms.length === 0) {
+      searchTerms.push('security specialist')
+    }
+    
+    const searchKeyword = searchTerms.slice(0, 2).join(' ')
+    console.log('USAJobs search query:', searchKeyword)
     
     let url = `https://data.usajobs.gov/api/search?Keyword=${encodeURIComponent(searchKeyword)}&ResultsPerPage=15`
     
-    if (location) {
+    if (location && location.trim()) {
       url += `&LocationName=${encodeURIComponent(location)}`
     }
     
+    console.log('USAJobs URL:', url)
+    
     const response = await fetch(url, {
+      method: 'GET',
       headers: {
         'Host': 'data.usajobs.gov',
         'User-Agent': email,
@@ -138,13 +186,17 @@ async function searchUSAJobs(skills: string[], targetRoles: string[], location: 
     })
     
     if (!response.ok) {
-      console.error('USAJobs API error:', response.status)
+      const errorText = await response.text()
+      console.error('USAJobs API error:', response.status, errorText)
       return []
     }
 
     const data = await response.json()
     
-    if (!data.SearchResult?.SearchResultItems) {
+    console.log('USAJobs response received, items:', data.SearchResult?.SearchResultCount || 0)
+    
+    if (!data.SearchResult?.SearchResultItems || data.SearchResult.SearchResultItems.length === 0) {
+      console.log('USAJobs: No results found')
       return []
     }
 
@@ -164,7 +216,7 @@ async function searchUSAJobs(skills: string[], targetRoles: string[], location: 
         created: job.PositionStartDate,
         redirect_url: job.PositionURI,
         source: 'USAJobs',
-        matchScore: calculateMatchScore(job.PositionTitle, job.UserArea?.Details?.JobSummary || '', skills, targetRoles)
+        matchScore: calculateMatchScore(job.PositionTitle, job.UserArea?.Details?.JobSummary || '', skills, targetRoles, keywords)
       }
     })
   } catch (error) {
@@ -173,33 +225,46 @@ async function searchUSAJobs(skills: string[], targetRoles: string[], location: 
   }
 }
 
-function calculateMatchScore(title: string, description: string, skills: string[], targetRoles: string[]): number {
+function calculateMatchScore(title: string, description: string, skills: string[], targetRoles: string[], keywords: string[]): number {
   const jobText = `${title} ${description}`.toLowerCase()
-  let score = 50
+  let score = 40 // Base score
   
+  // Target role match is most important (up to +30)
   for (const role of (targetRoles || [])) {
-    if (jobText.includes(role.toLowerCase())) {
-      score += 15
+    const roleLower = role.toLowerCase()
+    if (title.toLowerCase().includes(roleLower)) {
+      score += 20 // Title match is huge
+    } else if (jobText.includes(roleLower)) {
+      score += 10
     }
   }
   
+  // Keyword matches (up to +20)
+  for (const keyword of (keywords || [])) {
+    if (jobText.includes(keyword.toLowerCase())) {
+      score += 3
+    }
+  }
+  
+  // Skill matches (up to +15)
   for (const skill of (skills || [])) {
     if (jobText.includes(skill.toLowerCase())) {
-      score += 5
+      score += 2
     }
   }
   
-  const leKeywords = ['security', 'investigation', 'law enforcement', 'criminal', 'compliance', 'fraud', 'risk', 'protection']
+  // Boost for LE-relevant terms
+  const leKeywords = ['security', 'investigation', 'law enforcement', 'criminal', 'compliance', 'fraud', 'risk', 'protection', 'analyst', 'specialist']
   for (const keyword of leKeywords) {
     if (jobText.includes(keyword)) {
-      score += 3
+      score += 2
     }
   }
   
   return Math.min(Math.max(score, 25), 98)
 }
 
-function getMockJobs(skills: string[], targetRoles: string[]): any[] {
+function getMockJobs(skills: string[], targetRoles: string[], keywords: string[]): any[] {
   const mockJobs = [
     {
       id: 'mock-1',
@@ -301,6 +366,6 @@ function getMockJobs(skills: string[], targetRoles: string[]): any[] {
   
   return mockJobs.map(job => ({
     ...job,
-    matchScore: calculateMatchScore(job.title, job.description, skills || [], targetRoles || [])
+    matchScore: calculateMatchScore(job.title, job.description, skills || [], targetRoles || [], keywords || [])
   })).sort((a, b) => b.matchScore - a.matchScore)
 }

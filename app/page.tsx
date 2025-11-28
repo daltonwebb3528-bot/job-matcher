@@ -231,7 +231,8 @@ export default function Home() {
         body: JSON.stringify({ 
           skills: data.skills, 
           keywords: translatedProfile?.keywords || [],
-          targetRoles: translatedProfile?.targetRoles || []
+          targetRoles: translatedProfile?.targetRoles || [],
+          location: ''
         }),
       })
 
@@ -280,6 +281,7 @@ export default function Home() {
         body: JSON.stringify({ 
           skills: profileData.keywords,
           targetRoles: profileData.targetRoles,
+          keywords: profileData.keywords,
           location: questionnaire.location
         }),
       })
