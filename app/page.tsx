@@ -48,6 +48,7 @@ interface Job {
   created: string
   redirect_url: string
   matchScore?: number
+  source?: string
 }
 
 interface TailoringResult {
@@ -1022,6 +1023,17 @@ export default function Home() {
                         {job.matchScore && (
                           <span className="px-2 py-0.5 bg-brand-500/20 text-brand-400 text-xs font-medium rounded-full">
                             {job.matchScore}% match
+                          </span>
+                        )}
+                        {job.source && (
+                          <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
+                            job.source === 'USAJobs' 
+                              ? 'bg-blue-500/20 text-blue-400' 
+                              : job.source === 'Adzuna'
+                              ? 'bg-purple-500/20 text-purple-400'
+                              : 'bg-gold-500/20 text-gold-400'
+                          }`}>
+                            {job.source}
                           </span>
                         )}
                       </div>
