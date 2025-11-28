@@ -72,25 +72,42 @@ async function searchAdzuna(skills: string[], targetRoles: string[], keywords: s
   }
 
   try {
-    // Build smarter search using target roles first, then keywords
-    const searchTerms: string[] = []
+    // Use SIMPLE search terms - just 2-3 words max
+    // Pick the first target role and simplify it
+    let query = 'security manager' // default fallback
     
-    // Add target roles (most important)
     if (targetRoles && targetRoles.length > 0) {
-      searchTerms.push(...targetRoles.slice(0, 3))
+      // Take first role and extract just the key job title (last 1-2 words usually)
+      const firstRole = targetRoles[0]
+      // Extract simpler version: "Director of Security Operations" -> "Security Operations"
+      // or just use a key word from it
+      if (firstRole.toLowerCase().includes('security')) {
+        query = 'security manager'
+      } else if (firstRole.toLowerCase().includes('risk')) {
+        query = 'risk manager'
+      } else if (firstRole.toLowerCase().includes('operations')) {
+        query = 'operations manager'
+      } else if (firstRole.toLowerCase().includes('compliance')) {
+        query = 'compliance manager'
+      } else if (firstRole.toLowerCase().includes('training')) {
+        query = 'training manager'
+      } else if (firstRole.toLowerCase().includes('program')) {
+        query = 'program manager'
+      } else if (firstRole.toLowerCase().includes('project')) {
+        query = 'project manager'
+      } else if (firstRole.toLowerCase().includes('product')) {
+        query = 'product manager'
+      } else if (firstRole.toLowerCase().includes('investigat')) {
+        query = 'investigator'
+      } else if (firstRole.toLowerCase().includes('analyst')) {
+        query = 'analyst'
+      } else {
+        // Just take last two words of the role
+        const words = firstRole.split(' ')
+        query = words.slice(-2).join(' ')
+      }
     }
     
-    // Add some keywords
-    if (keywords && keywords.length > 0) {
-      searchTerms.push(...keywords.slice(0, 2))
-    }
-    
-    // Fallback if nothing provided
-    if (searchTerms.length === 0) {
-      searchTerms.push('security', 'investigator')
-    }
-    
-    const query = searchTerms.join(' ')
     console.log('Adzuna search query:', query)
     
     const country = 'us'
@@ -137,7 +154,11 @@ async function searchUSAJobs(skills: string[], targetRoles: string[], keywords: 
   const apiKey = process.env.USAJOBS_API_KEY?.trim()
   const email = process.env.USAJOBS_EMAIL?.trim()
   
-  console.log('USAJobs env check - API key exists:', !!apiKey, 'Email exists:', !!email)
+  // Log all env vars that start with USA to help debug
+  const envKeys = Object.keys(process.env).filter(k => k.toUpperCase().includes('USA'))
+  console.log('USAJobs env vars found:', envKeys)
+  console.log('USAJobs API key exists:', !!apiKey, 'length:', apiKey?.length || 0)
+  console.log('USAJobs email exists:', !!email)
   
   if (!apiKey || apiKey === '' || apiKey === 'undefined') {
     console.log('USAJobs: Missing or invalid API key')
@@ -150,27 +171,35 @@ async function searchUSAJobs(skills: string[], targetRoles: string[], keywords: 
   }
 
   try {
-    // Build search query from target roles and keywords
-    const searchTerms: string[] = []
+    // Use SIMPLE search - just 1-2 words
+    let query = 'program manager' // good default with lots of results
     
     if (targetRoles && targetRoles.length > 0) {
-      // Use first target role as primary search
-      searchTerms.push(targetRoles[0])
+      const firstRole = targetRoles[0].toLowerCase()
+      if (firstRole.includes('security')) {
+        query = 'security specialist'
+      } else if (firstRole.includes('risk')) {
+        query = 'risk management'
+      } else if (firstRole.includes('compliance')) {
+        query = 'compliance'
+      } else if (firstRole.includes('training')) {
+        query = 'training specialist'
+      } else if (firstRole.includes('operations')) {
+        query = 'operations'
+      } else if (firstRole.includes('investigat')) {
+        query = 'investigator'
+      } else if (firstRole.includes('analyst')) {
+        query = 'analyst'
+      } else if (firstRole.includes('program')) {
+        query = 'program manager'
+      } else if (firstRole.includes('project')) {
+        query = 'project manager'
+      }
     }
     
-    if (keywords && keywords.length > 0) {
-      searchTerms.push(keywords[0])
-    }
+    console.log('USAJobs search query:', query)
     
-    // Fallback - use broader terms that will return results
-    if (searchTerms.length === 0) {
-      searchTerms.push('program manager')
-    }
-    
-    const searchKeyword = searchTerms.slice(0, 2).join(' ')
-    console.log('USAJobs search query:', searchKeyword)
-    
-    let url = `https://data.usajobs.gov/api/search?Keyword=${encodeURIComponent(searchKeyword)}&ResultsPerPage=15`
+    let url = `https://data.usajobs.gov/api/search?Keyword=${encodeURIComponent(query)}&ResultsPerPage=15`
     
     if (location && location.trim()) {
       url += `&LocationName=${encodeURIComponent(location)}`
