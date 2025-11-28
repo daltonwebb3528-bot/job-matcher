@@ -2,8 +2,8 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'JobMatch AI - Smart Resume Matching',
-  description: 'Upload your resume and find perfectly matched jobs with AI-powered recommendations',
+  title: 'Blue to New | Law Enforcement Career Transition',
+  description: 'Helping law enforcement professionals translate their skills and find meaningful careers in the private sector.',
 }
 
 export default function RootLayout({
@@ -13,7 +13,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="antialiased">
+      <body className="antialiased text-white">
         {children}
       </body>
     </html>

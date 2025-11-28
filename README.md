@@ -1,87 +1,92 @@
-# JobMatch AI
+# Blue to New - Law Enforcement Career Transition
 
-Upload your resume, find matching jobs, and get AI-powered suggestions to tailor your resume for each opportunity.
+Help law enforcement professionals translate their skills and find meaningful careers in the private sector.
 
 ## Features
 
-- **Resume Parsing** - Upload PDF or Word documents, AI extracts your skills and experience
-- **Job Matching** - Searches job boards and ranks results by relevance to your background  
-- **AI Tailoring** - Get specific recommendations on how to improve your resume for each job
+- **Two Entry Paths**: Answer questions OR upload existing resume
+- **Guided Questionnaire**: Built specifically for LE backgrounds - asks about rank, units, certifications
+- **AI Skills Translation**: Converts LE jargon into corporate-friendly language
+- **Job Matching**: Finds positions that value LE experience (security, investigations, compliance, etc.)
+- **AI Resume Tailoring**: Premium feature - specific suggestions for each job application
+
+## Monetization
+
+- **Free tier**: Questionnaire/upload, profile translation, job browsing
+- **Premium ($15/month)**: AI-powered resume tailoring for each job
 
 ## Quick Setup
 
 ### 1. Get Your API Keys
 
-You'll need:
-- **Anthropic API Key** (required) - [Get one here](https://console.anthropic.com/)
-- **Adzuna API Keys** (optional) - [Get them here](https://developer.adzuna.com/)
-
-The app works with mock job data if you don't have Adzuna keys yet.
+- **Anthropic API Key** (required) - [console.anthropic.com](https://console.anthropic.com/)
+- **Adzuna API Keys** (optional) - [developer.adzuna.com](https://developer.adzuna.com/)
 
 ### 2. Deploy to Vercel
 
-The easiest way to deploy:
-
-1. Push this code to a GitHub repository
-2. Go to [vercel.com](https://vercel.com) and sign in with GitHub
-3. Click "New Project" and import your repository
-4. Add your environment variables:
-   - `ANTHROPIC_API_KEY` = your Anthropic API key
-   - `ADZUNA_APP_ID` = your Adzuna app ID (optional)
-   - `ADZUNA_APP_KEY` = your Adzuna app key (optional)
-5. Click "Deploy"
+1. Push to GitHub
+2. Import in Vercel
+3. Add environment variables:
+   - `ANTHROPIC_API_KEY`
+   - `ADZUNA_APP_ID` (optional)
+   - `ADZUNA_APP_KEY` (optional)
+4. Deploy
 
 ### 3. Connect Your Domain
 
-After deploying:
-1. Go to your project settings in Vercel
-2. Click "Domains"
-3. Add your custom domain
-4. Follow Vercel's instructions to update your DNS settings
+In Vercel project settings → Domains → Add your domain
 
 ## Local Development
 
 ```bash
-# Install dependencies
 npm install
-
-# Create .env.local file with your API keys
 cp .env.example .env.local
-# Edit .env.local and add your keys
-
-# Run the development server
+# Edit .env.local with your keys
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
-
 ## Tech Stack
 
-- **Next.js 14** - React framework
-- **Tailwind CSS** - Styling
-- **Claude AI** - Resume parsing and tailoring recommendations
-- **Adzuna API** - Job listings
+- Next.js 14
+- Tailwind CSS
+- Claude AI (Anthropic)
+- Adzuna Jobs API
 
 ## Project Structure
 
 ```
-job-matcher/
+le-transition/
 ├── app/
 │   ├── api/
-│   │   ├── parse-resume/    # Handles resume upload and parsing
-│   │   ├── search-jobs/     # Searches job APIs
-│   │   └── tailor-resume/   # AI analysis and recommendations
-│   ├── globals.css          # Global styles
-│   ├── layout.tsx           # Root layout
-│   └── page.tsx             # Main app component
-├── .env.example             # Environment variables template
+│   │   ├── parse-resume/        # Resume upload handling
+│   │   ├── translate-experience/ # LE → Corporate translation
+│   │   ├── search-jobs/         # Job search API
+│   │   └── tailor-resume/       # AI tailoring (premium)
+│   ├── globals.css
+│   ├── layout.tsx
+│   └── page.tsx                 # Main app with questionnaire
+├── .env.example
 ├── package.json
 └── README.md
 ```
 
-## Need Help?
+## Target Audience
 
-If something isn't working:
-1. Make sure your API keys are set correctly in Vercel
-2. Check the Vercel deployment logs for errors
-3. The app will use mock job data if Adzuna keys aren't set - this is normal for testing
+- Police officers (all ranks)
+- Sheriffs / Deputies
+- State troopers
+- Federal agents
+- Corrections officers
+- Military police
+
+## Target Jobs
+
+The app focuses on roles that value LE experience:
+- Corporate Security
+- Fraud Investigation
+- Risk Management
+- Compliance
+- Loss Prevention
+- Private Investigation
+- Government Contractors
+- HR / Workplace Investigations

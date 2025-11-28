@@ -10,26 +10,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 })
     }
 
-    // Read file content
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
     
     let text = ''
     
-    // For PDF files, we'll send the raw text to Claude to parse
-    // For simplicity in MVP, we'll extract basic text
     if (file.name.endsWith('.pdf')) {
-      // Try to extract text from PDF using pdf-parse
       try {
         const pdfParse = require('pdf-parse')
         const data = await pdfParse(buffer)
         text = data.text
       } catch (e) {
-        // Fallback: convert buffer to string and clean it
         text = buffer.toString('utf-8').replace(/[^\x20-\x7E\n]/g, ' ')
       }
     } else if (file.name.endsWith('.docx')) {
-      // For DOCX, use mammoth
       try {
         const mammoth = require('mammoth')
         const result = await mammoth.extractRawText({ buffer })
@@ -38,11 +32,9 @@ export async function POST(request: NextRequest) {
         text = buffer.toString('utf-8')
       }
     } else {
-      // Plain text
       text = buffer.toString('utf-8')
     }
 
-    // Use Claude to extract structured data from the resume
     const anthropic = new Anthropic({
       apiKey: process.env.ANTHROPIC_API_KEY,
     })
@@ -53,13 +45,15 @@ export async function POST(request: NextRequest) {
       messages: [
         {
           role: 'user',
-          content: `Analyze this resume and extract the following information in JSON format:
+          content: `Analyze this resume from a law enforcement professional and extract the following information in JSON format:
           
 {
-  "skills": ["list of technical and soft skills mentioned"],
-  "experience": ["list of job titles and brief descriptions"],
-  "education": ["list of degrees, certifications, schools"],
-  "keywords": ["important keywords for job searching"]
+  "skills": ["list of skills - both LE-specific and transferable"],
+  "experience": ["list of job titles, units, and key responsibilities"],
+  "education": ["list of degrees, certifications, academies completed"],
+  "rank": "current or most recent rank",
+  "yearsOfService": "estimated years in law enforcement",
+  "specializations": ["detected specializations like SWAT, Detective, K-9, etc."]
 }
 
 Resume text:
@@ -70,12 +64,10 @@ Respond ONLY with valid JSON, no other text.`
       ]
     })
 
-    // Parse Claude's response
     const responseText = message.content[0].type === 'text' ? message.content[0].text : ''
     
     let parsedData
     try {
-      // Try to extract JSON from the response
       const jsonMatch = responseText.match(/\{[\s\S]*\}/)
       if (jsonMatch) {
         parsedData = JSON.parse(jsonMatch[0])
@@ -83,21 +75,19 @@ Respond ONLY with valid JSON, no other text.`
         throw new Error('No JSON found')
       }
     } catch (e) {
-      // Fallback to basic extraction
       parsedData = {
         skills: extractBasicSkills(text),
         experience: [],
         education: [],
-        keywords: []
+        rank: '',
+        yearsOfService: '',
+        specializations: []
       }
     }
 
     return NextResponse.json({
       text: text.slice(0, 5000),
-      skills: parsedData.skills || [],
-      experience: parsedData.experience || [],
-      education: parsedData.education || [],
-      keywords: parsedData.keywords || []
+      ...parsedData
     })
 
   } catch (error) {
@@ -106,23 +96,20 @@ Respond ONLY with valid JSON, no other text.`
   }
 }
 
-// Basic skill extraction fallback
 function extractBasicSkills(text: string): string[] {
-  const commonSkills = [
-    'JavaScript', 'TypeScript', 'Python', 'Java', 'C++', 'React', 'Node.js',
-    'SQL', 'AWS', 'Docker', 'Kubernetes', 'Git', 'Agile', 'Scrum',
-    'Machine Learning', 'Data Analysis', 'Project Management', 'Leadership',
-    'Communication', 'Problem Solving', 'Excel', 'PowerPoint', 'Salesforce',
-    'Marketing', 'Sales', 'Customer Service', 'Finance', 'Accounting',
-    'HTML', 'CSS', 'MongoDB', 'PostgreSQL', 'GraphQL', 'REST API',
-    'Vue', 'Angular', 'Django', 'Flask', 'Spring', 'PHP', 'Ruby',
-    'Photoshop', 'Figma', 'Sketch', 'UI/UX', 'Design', 'Analytics'
+  const leSkills = [
+    'Investigation', 'Report Writing', 'Interviewing', 'Surveillance',
+    'Crisis Management', 'Conflict Resolution', 'Evidence Collection',
+    'Case Management', 'Training', 'Leadership', 'Communication',
+    'Problem Solving', 'Critical Thinking', 'Decision Making',
+    'Public Speaking', 'De-escalation', 'First Aid', 'CPR',
+    'Firearms', 'Self Defense', 'Emergency Response'
   ]
   
   const foundSkills: string[] = []
   const lowerText = text.toLowerCase()
   
-  for (const skill of commonSkills) {
+  for (const skill of leSkills) {
     if (lowerText.includes(skill.toLowerCase())) {
       foundSkills.push(skill)
     }
