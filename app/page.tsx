@@ -232,6 +232,8 @@ export default function Home() {
           skills: data.skills, 
           keywords: translatedProfile?.keywords || [],
           targetRoles: translatedProfile?.targetRoles || [],
+          searchTerms: translatedProfile?.searchTerms || translatedProfile?.targetRoles || [],
+          govSearchTerms: translatedProfile?.govSearchTerms || [],
           location: ''
         }),
       })
@@ -282,6 +284,8 @@ export default function Home() {
           skills: profileData.keywords,
           targetRoles: profileData.targetRoles,
           keywords: profileData.keywords,
+          searchTerms: profileData.searchTerms || profileData.targetRoles,
+          govSearchTerms: profileData.govSearchTerms || [],
           location: questionnaire.location
         }),
       })
@@ -1025,17 +1029,6 @@ export default function Home() {
                         {job.matchScore && (
                           <span className="px-2 py-0.5 bg-brand-500/20 text-brand-400 text-xs font-medium rounded-full">
                             {job.matchScore}% match
-                          </span>
-                        )}
-                        {job.source && (
-                          <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
-                            job.source === 'USAJobs' 
-                              ? 'bg-blue-500/20 text-blue-400' 
-                              : job.source === 'Adzuna'
-                              ? 'bg-purple-500/20 text-purple-400'
-                              : 'bg-gold-500/20 text-gold-400'
-                          }`}>
-                            {job.source}
                           </span>
                         )}
                       </div>
