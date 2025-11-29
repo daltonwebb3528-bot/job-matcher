@@ -1,119 +1,321 @@
 import { NextRequest, NextResponse } from 'next/server'
-import Anthropic from '@anthropic-ai/sdk'
+
+interface AdzunaJob {
+  id: string
+  title: string
+  company: { display_name: string }
+  location: { display_name: string }
+  description: string
+  salary_min?: number
+  salary_max?: number
+  created: string
+  redirect_url: string
+}
 
 export async function POST(request: NextRequest) {
   try {
-    const formData = await request.formData()
-    const file = formData.get('file') as File
+    const { skills, targetRoles, keywords, searchTerms, govSearchTerms, location } = await request.json()
     
-    if (!file) {
-      return NextResponse.json({ error: 'No file provided' }, { status: 400 })
-    }
-
-    const bytes = await file.arrayBuffer()
-    const buffer = Buffer.from(bytes)
+    console.log('Search request received')
+    console.log('Private sector search terms:', searchTerms)
+    console.log('Government search terms:', govSearchTerms)
     
-    let text = ''
+    // Combine private sector and government search terms
+    const privateTerms = searchTerms && searchTerms.length > 0 
+      ? searchTerms 
+      : (targetRoles || ['program manager', 'operations manager'])
     
-    if (file.name.endsWith('.pdf')) {
-      try {
-        const pdfParse = require('pdf-parse')
-        const data = await pdfParse(buffer)
-        text = data.text
-      } catch (e) {
-        text = buffer.toString('utf-8').replace(/[^\x20-\x7E\n]/g, ' ')
-      }
-    } else if (file.name.endsWith('.docx')) {
-      try {
-        const mammoth = require('mammoth')
-        const result = await mammoth.extractRawText({ buffer })
-        text = result.value
-      } catch (e) {
-        text = buffer.toString('utf-8')
-      }
-    } else {
-      text = buffer.toString('utf-8')
-    }
-
-    const anthropic = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY,
-    })
-
-    const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 2000,
-      messages: [
-        {
-          role: 'user',
-          content: `Analyze this resume from a law enforcement professional and extract the following information in JSON format:
-          
-{
-  "skills": ["list of skills - both LE-specific and transferable"],
-  "experience": ["list of job titles, units, and key responsibilities"],
-  "education": ["list of degrees, certifications, academies completed"],
-  "rank": "current or most recent rank",
-  "yearsOfService": "estimated years in law enforcement",
-  "specializations": ["detected specializations like SWAT, Detective, K-9, etc."]
-}
-
-Resume text:
-${text.slice(0, 10000)}
-
-Respond ONLY with valid JSON, no other text.`
+    const govTerms = govSearchTerms && govSearchTerms.length > 0
+      ? govSearchTerms
+      : []
+    
+    // Use MORE search terms to get diverse results
+    const allTerms = [...privateTerms.slice(0, 15), ...govTerms.slice(0, 8)]
+    
+    console.log('Combined search terms:', allTerms)
+    
+    const allJobs: any[] = []
+    const seenIds = new Set<string>()
+    
+    // Search for EACH term separately to get diverse results
+    // Increased to 20 different searches to get more results
+    for (const term of allTerms.slice(0, 20)) {
+      const jobs = await searchJobs(term, location)
+      console.log(`Search for "${term}" returned ${jobs.length} jobs`)
+      
+      // Add jobs we haven't seen yet
+      for (const job of jobs) {
+        if (!seenIds.has(job.id)) {
+          seenIds.add(job.id)
+          // Calculate match score based on all criteria
+          job.matchScore = calculateMatchScore(job.title, job.description, skills, targetRoles, keywords, term)
+          allJobs.push(job)
         }
-      ]
-    })
-
-    const responseText = message.content[0].type === 'text' ? message.content[0].text : ''
-    
-    let parsedData
-    try {
-      const jsonMatch = responseText.match(/\{[\s\S]*\}/)
-      if (jsonMatch) {
-        parsedData = JSON.parse(jsonMatch[0])
-      } else {
-        throw new Error('No JSON found')
       }
-    } catch (e) {
-      parsedData = {
-        skills: extractBasicSkills(text),
-        experience: [],
-        education: [],
-        rank: '',
-        yearsOfService: '',
-        specializations: []
-      }
+      
+      // Stop early if we've hit our target
+      if (allJobs.length >= 150) break;
     }
+    
+    console.log('Total unique jobs found:', allJobs.length)
+    
+    // If no results, use mock data
+    if (allJobs.length === 0) {
+      console.log('No API results, using mock data')
+      return NextResponse.json({
+        jobs: getMockJobs(skills, targetRoles, keywords)
+      })
+    }
+    
+    // Sort by match score
+    allJobs.sort((a, b) => b.matchScore - a.matchScore)
 
-    return NextResponse.json({
-      text: text.slice(0, 5000),
-      ...parsedData
-    })
+    // Return top 100 jobs
+    return NextResponse.json({ jobs: allJobs.slice(0, 100) })
 
   } catch (error) {
-    console.error('Error parsing resume:', error)
-    return NextResponse.json({ error: 'Failed to parse resume' }, { status: 500 })
+    console.error('Error searching jobs:', error)
+    return NextResponse.json({ error: 'Failed to search jobs' }, { status: 500 })
   }
 }
 
-function extractBasicSkills(text: string): string[] {
-  const leSkills = [
-    'Investigation', 'Report Writing', 'Interviewing', 'Surveillance',
-    'Crisis Management', 'Conflict Resolution', 'Evidence Collection',
-    'Case Management', 'Training', 'Leadership', 'Communication',
-    'Problem Solving', 'Critical Thinking', 'Decision Making',
-    'Public Speaking', 'De-escalation', 'First Aid', 'CPR',
-    'Firearms', 'Self Defense', 'Emergency Response'
-  ]
+async function searchJobs(searchTerm: string, location: string): Promise<any[]> {
+  const appId = process.env.ADZUNA_APP_ID
+  const appKey = process.env.ADZUNA_APP_KEY
   
-  const foundSkills: string[] = []
-  const lowerText = text.toLowerCase()
+  if (!appId || !appKey) {
+    console.log('Job API: Missing API keys')
+    return []
+  }
+
+  try {
+    const country = 'us'
+    // Increased to 20 results per search (up from 15)
+    let url = `https://api.adzuna.com/v1/api/jobs/${country}/search/1?app_id=${appId}&app_key=${appKey}&results_per_page=20&what=${encodeURIComponent(searchTerm)}&content-type=application/json`
+    
+    if (location && location.trim() && location.toLowerCase() !== 'remote') {
+      url += `&where=${encodeURIComponent(location)}`
+    }
+    
+    const response = await fetch(url)
+    
+    if (!response.ok) {
+      console.error('Job search API error:', response.status)
+      return []
+    }
+
+    const data = await response.json()
+    
+    if (!data.results) {
+      return []
+    }
+    
+    return data.results.map((job: AdzunaJob) => ({
+      id: job.id,
+      title: job.title,
+      company: job.company?.display_name || 'Company Confidential',
+      location: job.location?.display_name || 'Location not specified',
+      description: job.description,
+      salary_min: job.salary_min,
+      salary_max: job.salary_max,
+      created: job.created,
+      redirect_url: job.redirect_url,
+      matchedTerm: searchTerm
+    }))
+  } catch (error) {
+    console.error('Job search error:', error)
+    return []
+  }
+}
+
+function calculateMatchScore(
+  title: string, 
+  description: string, 
+  skills: string[], 
+  targetRoles: string[], 
+  keywords: string[],
+  matchedTerm: string
+): number {
+  const jobText = `${title} ${description}`.toLowerCase()
+  const titleLower = title.toLowerCase()
+  const matchedTermLower = matchedTerm.toLowerCase()
+  const descriptionLower = description.toLowerCase()
+  let score = 20 // Lower base score to allow more differentiation
   
-  for (const skill of leSkills) {
-    if (lowerText.includes(skill.toLowerCase())) {
-      foundSkills.push(skill)
+  // EXACT title match with search term = huge boost (90%+ match)
+  if (titleLower === matchedTermLower) {
+    score += 50
+  } else if (titleLower.includes(matchedTermLower)) {
+    score += 45
+  } else {
+    // Partial match - check if words overlap
+    const termWords = matchedTermLower.split(/\s+/)
+    const titleWords = titleLower.split(/\s+/)
+    let wordMatches = 0
+    for (const termWord of termWords) {
+      if (termWord.length > 2 && titleWords.some(tw => tw.includes(termWord) || termWord.includes(tw))) {
+        wordMatches++
+      }
+    }
+    if (wordMatches > 0) {
+      score += wordMatches * 15
     }
   }
   
-  return foundSkills.slice(0, 20)
+  // Target role matches in title (strong signal)
+  let roleMatchCount = 0
+  for (const role of (targetRoles || [])) {
+    const roleLower = role.toLowerCase()
+    const roleWords = roleLower.split(/\s+/).filter(w => w.length > 3)
+    for (const word of roleWords) {
+      if (titleLower.includes(word)) {
+        roleMatchCount++
+        score += 8 // Higher weight for role matches
+      }
+      if (descriptionLower.includes(word)) {
+        roleMatchCount++
+        score += 2 // Some credit for description matches
+      }
+    }
+  }
+  
+  // Keyword matches in description (medium signal)
+  let keywordMatches = 0
+  for (const keyword of (keywords || [])) {
+    if (keyword.length > 3) {
+      if (titleLower.includes(keyword.toLowerCase())) {
+        keywordMatches++
+        score += 3 // Higher weight for title keywords
+      } else if (descriptionLower.includes(keyword.toLowerCase())) {
+        keywordMatches++
+        score += 1.5 // Lower weight for description keywords
+      }
+    }
+  }
+  
+  // Skill matches (lighter signal)
+  let skillMatches = 0
+  for (const skill of (skills || [])) {
+    if (skill.length > 3) {
+      if (titleLower.includes(skill.toLowerCase())) {
+        skillMatches++
+        score += 2
+      } else if (descriptionLower.includes(skill.toLowerCase())) {
+        skillMatches++
+        score += 0.5
+      }
+    }
+  }
+  
+  // Bonus for multiple term matches (indicates strong relevance)
+  const totalMatches = roleMatchCount + keywordMatches + skillMatches
+  if (totalMatches > 10) {
+    score += 10
+  } else if (totalMatches > 5) {
+    score += 5
+  }
+  
+  // Add slight randomness for variety (±2 points)
+  score += Math.floor(Math.random() * 5) - 2
+  
+  // Ensure score is within bounds
+  return Math.min(Math.max(Math.round(score), 10), 98)
+}
+
+function getMockJobs(skills: string[], targetRoles: string[], keywords: string[]): any[] {
+  const mockJobs = [
+    {
+      id: 'mock-1',
+      title: 'Program Manager',
+      company: 'Fortune 500 Company',
+      location: 'Dallas, TX',
+      description: 'Seeking an experienced program manager to lead cross-functional initiatives. Responsibilities include stakeholder management, project planning, risk assessment, and team coordination.',
+      salary_min: 95000,
+      salary_max: 130000,
+      created: new Date().toISOString(),
+      redirect_url: 'https://example.com/job/1'
+    },
+    {
+      id: 'mock-2',
+      title: 'Marketing Coordinator',
+      company: 'Growing Tech Company',
+      location: 'Remote',
+      description: 'Join our marketing team to coordinate campaigns, manage social media presence, create content, and engage with our community. Great opportunity for career changers.',
+      salary_min: 55000,
+      salary_max: 75000,
+      created: new Date().toISOString(),
+      redirect_url: 'https://example.com/job/2'
+    },
+    {
+      id: 'mock-3',
+      title: 'Operations Manager',
+      company: 'National Services Company',
+      location: 'Chicago, IL',
+      description: 'Lead operations across multiple locations. Manage teams, optimize processes, ensure compliance, and drive continuous improvement initiatives.',
+      salary_min: 85000,
+      salary_max: 115000,
+      created: new Date().toISOString(),
+      redirect_url: 'https://example.com/job/3'
+    },
+    {
+      id: 'mock-4',
+      title: 'Communications Specialist',
+      company: 'Healthcare Organization',
+      location: 'Phoenix, AZ',
+      description: 'Develop internal and external communications, manage media relations, create press releases, and coordinate public affairs activities.',
+      salary_min: 60000,
+      salary_max: 80000,
+      created: new Date().toISOString(),
+      redirect_url: 'https://example.com/job/4'
+    },
+    {
+      id: 'mock-5',
+      title: 'Training Specialist',
+      company: 'Corporate Training Solutions',
+      location: 'Austin, TX',
+      description: 'Design and deliver training programs, develop curriculum, assess learning outcomes, and coach employees on professional development.',
+      salary_min: 65000,
+      salary_max: 85000,
+      created: new Date().toISOString(),
+      redirect_url: 'https://example.com/job/5'
+    },
+    {
+      id: 'mock-6',
+      title: 'Public Affairs Specialist',
+      company: 'Government Agency',
+      location: 'Washington, DC',
+      description: 'Manage public communications, coordinate with media, develop outreach strategies, and represent the organization at community events.',
+      salary_min: 70000,
+      salary_max: 95000,
+      created: new Date().toISOString(),
+      redirect_url: 'https://example.com/job/6'
+    },
+    {
+      id: 'mock-7',
+      title: 'Security Operations Manager',
+      company: 'Enterprise Corporation',
+      location: 'Denver, CO',
+      description: 'Oversee security operations, manage team of specialists, develop policies, conduct risk assessments, and coordinate emergency response.',
+      salary_min: 90000,
+      salary_max: 120000,
+      created: new Date().toISOString(),
+      redirect_url: 'https://example.com/job/7'
+    },
+    {
+      id: 'mock-8',
+      title: 'Business Analyst',
+      company: 'Consulting Firm',
+      location: 'New York, NY',
+      description: 'Analyze business processes, gather requirements, create documentation, and work with stakeholders to implement solutions.',
+      salary_min: 75000,
+      salary_max: 100000,
+      created: new Date().toISOString(),
+      redirect_url: 'https://example.com/job/8'
+    }
+  ]
+  
+  return mockJobs.map(job => ({
+    ...job,
+    matchScore: calculateMatchScore(job.title, job.description, skills || [], targetRoles || [], keywords || [], '')
+  })).sort((a, b) => b.matchScore - a.matchScore)
 }
