@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+export const dynamic = 'force-dynamic'
+
 export async function POST(request: NextRequest) {
   try {
-    // Handle FormData upload
     const formData = await request.formData()
     const file = formData.get('file') as File
     
@@ -17,11 +18,9 @@ export async function POST(request: NextRequest) {
     
     let text = ''
     
-    // Handle PDF files
     if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
       try {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const pdfParse = require('pdf-parse')
+        const pdfParse = (await import('pdf-parse')).default
         const data = await pdfParse(buffer)
         text = data.text
         console.log('PDF text extracted, length:', text.length)
@@ -32,13 +31,12 @@ export async function POST(request: NextRequest) {
         }, { status: 500 })
       }
     }
-    // Handle Word documents (.docx)
     else if (
       file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
       file.name.toLowerCase().endsWith('.docx')
     ) {
       try {
-        const mammoth = await import('mammoth')
+        const mammoth = (await import('mammoth')).default
         const result = await mammoth.extractRawText({ buffer })
         text = result.value
         console.log('DOCX text extracted, length:', text.length)
@@ -47,13 +45,12 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Failed to parse Word document' }, { status: 500 })
       }
     }
-    // Handle older Word documents (.doc)
     else if (
       file.type === 'application/msword' ||
       file.name.toLowerCase().endsWith('.doc')
     ) {
       try {
-        const mammoth = await import('mammoth')
+        const mammoth = (await import('mammoth')).default
         const result = await mammoth.extractRawText({ buffer })
         text = result.value
         console.log('DOC text extracted, length:', text.length)
@@ -64,7 +61,6 @@ export async function POST(request: NextRequest) {
         }, { status: 500 })
       }
     }
-    // Handle plain text
     else if (file.type === 'text/plain' || file.name.toLowerCase().endsWith('.txt')) {
       text = buffer.toString('utf-8')
       console.log('Text file read, length:', text.length)
@@ -81,7 +77,6 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Extract structured data from the resume text
     const resumeData = extractResumeData(text)
     
     console.log('Resume data extracted:', {
@@ -115,7 +110,6 @@ function extractResumeData(text: string): {
   
   let currentSection = ''
   
-  // Common section headers
   const skillHeaders = ['skills', 'technical skills', 'core competencies', 'competencies', 'expertise', 'qualifications', 'certifications']
   const experienceHeaders = ['experience', 'work experience', 'professional experience', 'employment', 'work history', 'career history']
   const educationHeaders = ['education', 'academic', 'degrees', 'training', 'certifications and training']
@@ -123,7 +117,6 @@ function extractResumeData(text: string): {
   for (const line of lines) {
     const lineLower = line.toLowerCase()
     
-    // Detect section headers
     if (skillHeaders.some(h => lineLower.includes(h) && line.length < 50)) {
       currentSection = 'skills'
       continue
@@ -137,10 +130,12 @@ function extractResumeData(text: string): {
       continue
     }
     
-    // Add content to appropriate section
     if (currentSection === 'skills' && line.length > 2 && line.length < 200) {
       if (line.includes(',')) {
-        skills.push(...line.split(',').map(s => s.trim()).filter(s => s.length > 1))
+        const splitSkills = line.split(',').map(s => s.trim()).filter(s => s.length > 1)
+        for (const s of splitSkills) {
+          skills.push(s)
+        }
       } else if (line.includes('•') || line.includes('·') || line.includes('-')) {
         skills.push(line.replace(/^[•·\-\*]\s*/, '').trim())
       } else {
@@ -155,7 +150,6 @@ function extractResumeData(text: string): {
     }
   }
   
-  // If no sections were detected, try to extract skills from the full text
   if (skills.length === 0) {
     const commonSkills = [
       'leadership', 'management', 'communication', 'investigation', 'analysis',
@@ -173,18 +167,21 @@ function extractResumeData(text: string): {
     }
   }
   
-  // Extract any bullet points as potential experience items
   if (experience.length === 0) {
     const bulletLines = lines.filter(l => 
       (l.startsWith('•') || l.startsWith('-') || l.startsWith('*') || /^\d+[\.\)]/.test(l)) &&
       l.length > 20
     )
-    experience.push(...bulletLines.slice(0, 15).map(l => l.replace(/^[•\-\*\d\.\)]+\s*/, '')))
+    for (const bl of bulletLines.slice(0, 15)) {
+      experience.push(bl.replace(/^[•\-\*\d\.\)]+\s*/, ''))
+    }
   }
+  
+  const uniqueSkills = skills.filter((skill, index) => skills.indexOf(skill) === index)
   
   return {
     text: text.slice(0, 10000),
-    skills: [...new Set(skills)].slice(0, 30),
+    skills: uniqueSkills.slice(0, 30),
     experience: experience.slice(0, 20),
     education: education.slice(0, 10)
   }

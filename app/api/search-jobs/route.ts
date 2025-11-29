@@ -21,7 +21,6 @@ export async function POST(request: NextRequest) {
     console.log('Private sector search terms:', searchTerms)
     console.log('Government search terms:', govSearchTerms)
     
-    // Combine private sector and government search terms
     const privateTerms = searchTerms && searchTerms.length > 0 
       ? searchTerms 
       : (targetRoles || ['program manager', 'operations manager'])
@@ -30,21 +29,18 @@ export async function POST(request: NextRequest) {
       ? govSearchTerms
       : []
     
-    // Use MORE search terms to get diverse results
-    const allTerms = [...privateTerms.slice(0, 10), ...govTerms.slice(0, 5)]
+    const allTerms = privateTerms.slice(0, 10).concat(govTerms.slice(0, 5))
     
     console.log('Combined search terms:', allTerms)
     
     const allJobs: any[] = []
     const seenIds = new Set<string>()
     
-    // Search for EACH term separately to get diverse results
     for (const term of allTerms.slice(0, 12)) {
       try {
         const jobs = await searchJobs(term, location)
         console.log(`Search for "${term}" returned ${jobs.length} jobs`)
         
-        // Add jobs we haven't seen yet
         for (const job of jobs) {
           if (!seenIds.has(job.id)) {
             seenIds.add(job.id)
@@ -60,7 +56,6 @@ export async function POST(request: NextRequest) {
     
     console.log('Total unique jobs found:', allJobs.length)
     
-    // If no results, use mock data
     if (allJobs.length === 0) {
       console.log('No API results, using mock data')
       return NextResponse.json({
@@ -68,15 +63,12 @@ export async function POST(request: NextRequest) {
       })
     }
     
-    // Sort by match score
     allJobs.sort((a, b) => b.matchScore - a.matchScore)
 
-    // Return top 75 jobs
     return NextResponse.json({ jobs: allJobs.slice(0, 75) })
 
   } catch (error) {
     console.error('Error searching jobs:', error)
-    // Return mock jobs instead of an error
     return NextResponse.json({ 
       jobs: getMockJobs([], [], [])
     })
@@ -111,14 +103,12 @@ async function searchJobs(searchTerm: string, location: string): Promise<any[]> 
       return []
     }
 
-    // Check content type before parsing
     const contentType = response.headers.get('content-type')
     if (!contentType || !contentType.includes('application/json')) {
       console.error('Adzuna returned non-JSON response:', contentType)
       return []
     }
 
-    // Get response as text first to safely handle parsing
     const responseText = await response.text()
     
     if (!responseText || responseText.trim() === '') {
@@ -168,11 +158,10 @@ function calculateMatchScore(
 ): number {
   const titleLower = (title || '').toLowerCase()
   const descLower = (description || '').toLowerCase()
-  const jobText = `${titleLower} ${descLower}`
+  const jobText = titleLower + ' ' + descLower
   const matchedTermLower = (matchedTerm || '').toLowerCase()
   let score = 30
   
-  // EXACT title match with search term = huge boost
   if (titleLower === matchedTermLower || titleLower.includes(matchedTermLower)) {
     score += 40
   } else {
@@ -189,7 +178,6 @@ function calculateMatchScore(
     }
   }
   
-  // Target role matches in title
   let roleMatchCount = 0
   for (const role of (targetRoles || [])) {
     const roleLower = (role || '').toLowerCase()
@@ -202,7 +190,6 @@ function calculateMatchScore(
   }
   score += Math.min(roleMatchCount * 5, 20)
   
-  // Keyword matches in description
   let keywordMatches = 0
   for (const keyword of (keywords || [])) {
     if (keyword && keyword.length > 3 && jobText.includes(keyword.toLowerCase())) {
@@ -211,7 +198,6 @@ function calculateMatchScore(
   }
   score += Math.min(keywordMatches * 1.5, 15)
   
-  // Skill matches
   let skillMatches = 0
   for (const skill of (skills || [])) {
     if (skill && skill.length > 3 && jobText.includes(skill.toLowerCase())) {
@@ -220,7 +206,6 @@ function calculateMatchScore(
   }
   score += Math.min(skillMatches, 10)
   
-  // Add slight randomness for variety
   score += Math.floor(Math.random() * 7) - 3
   
   return Math.min(Math.max(Math.round(score), 15), 98)

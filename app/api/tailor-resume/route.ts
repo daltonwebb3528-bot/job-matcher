@@ -9,7 +9,6 @@ export async function POST(request: NextRequest) {
       apiKey: process.env.ANTHROPIC_API_KEY,
     })
 
-    // Build context about the candidate
     let candidateContext = ''
     
     if (questionnaire && questionnaire.rank) {

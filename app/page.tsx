@@ -123,7 +123,7 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false)
   const [loadingMessage, setLoadingMessage] = useState('')
   const [questionStep, setQuestionStep] = useState(0)
-  const [isPremium, setIsPremium] = useState(false) // Will be replaced with real auth
+  const [isPremium, setIsPremium] = useState(false)
   
   const [questionnaire, setQuestionnaire] = useState<QuestionnaireData>({
     rank: '',
@@ -148,7 +148,6 @@ export default function Home() {
   const [tailoringResult, setTailoringResult] = useState<TailoringResult | null>(null)
   const [error, setError] = useState('')
 
-  // Question sections for the multi-step form
   const questionSections = [
     { title: 'Your Background', fields: ['rank', 'yearsOfService', 'department'] },
     { title: 'Specializations', fields: ['specializations'] },
@@ -174,7 +173,6 @@ export default function Home() {
     })
   }
 
-  // Handle file upload
   const handleDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault()
     setIsDragging(false)
@@ -208,7 +206,6 @@ export default function Home() {
       const data = await response.json()
       setResumeData(data)
       
-      // Create a translated profile from resume
       setLoadingMessage('Translating your experience...')
       
       const translateResponse = await fetch('/api/translate-experience', {
@@ -262,7 +259,6 @@ export default function Home() {
     setLoadingMessage('Analyzing your experience...')
 
     try {
-      // Translate LE experience to corporate language
       const translateResponse = await fetch('/api/translate-experience', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -309,7 +305,6 @@ export default function Home() {
 
   const handleJobSelect = async (job: Job) => {
     if (!isPremium) {
-      // Show premium prompt
       setSelectedJob(job)
       return
     }
@@ -375,7 +370,6 @@ export default function Home() {
 
   return (
     <main className="min-h-screen">
-      {/* Header */}
       <header className="border-b border-surface-800 bg-surface-950/90 backdrop-blur-sm sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3 cursor-pointer" onClick={startOver}>
@@ -399,7 +393,6 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Loading Overlay */}
       {isLoading && (
         <div className="fixed inset-0 bg-surface-950/90 backdrop-blur-sm z-50 flex items-center justify-center">
           <div className="bg-surface-900 border border-surface-700 rounded-2xl p-8 text-center animate-fade-in max-w-sm">
@@ -410,7 +403,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* Error Message */}
       {error && (
         <div className="max-w-6xl mx-auto px-6 pt-6">
           <div className="p-4 bg-red-900/20 border border-red-800 rounded-xl flex items-center gap-3 animate-fade-in">
@@ -423,10 +415,8 @@ export default function Home() {
         </div>
       )}
 
-      {/* Main Content */}
       <div className="max-w-6xl mx-auto px-6 py-12">
         
-        {/* START SCREEN */}
         {step === 'start' && (
           <div className="animate-fade-in">
             <div className="text-center mb-16">
@@ -435,7 +425,7 @@ export default function Home() {
                 Built for Law Enforcement Professionals
               </div>
               <h1 className="font-display text-4xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-white via-surface-200 to-surface-400 bg-clip-text text-transparent leading-tight">
-                Your Service Prepared You<br />For What's Next
+                Your Service Prepared You<br />For What&apos;s Next
               </h1>
               <p className="text-surface-400 text-xl max-w-2xl mx-auto">
                 Translate your law enforcement experience into corporate language and find meaningful careers in the private sector.
@@ -443,7 +433,6 @@ export default function Home() {
             </div>
 
             <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto mb-16">
-              {/* Option 1: Questionnaire */}
               <button
                 onClick={() => setStep('questionnaire')}
                 className="group p-8 bg-surface-900/50 border border-surface-700 rounded-2xl hover:border-brand-500/50 hover:bg-surface-800/50 transition-all text-left"
@@ -453,14 +442,13 @@ export default function Home() {
                 </div>
                 <h3 className="font-display text-xl font-semibold mb-2">Answer Questions</h3>
                 <p className="text-surface-400 mb-4">
-                  No resume? No problem. Tell us about your service and we'll translate it for you.
+                  No resume? No problem. Tell us about your service and we&apos;ll translate it for you.
                 </p>
                 <span className="inline-flex items-center gap-2 text-brand-400 font-medium">
                   Get Started <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </span>
               </button>
 
-              {/* Option 2: Upload Resume */}
               <button
                 onClick={() => setStep('upload')}
                 className="group p-8 bg-surface-900/50 border border-surface-700 rounded-2xl hover:border-brand-500/50 hover:bg-surface-800/50 transition-all text-left"
@@ -470,7 +458,7 @@ export default function Home() {
                 </div>
                 <h3 className="font-display text-xl font-semibold mb-2">Upload Resume</h3>
                 <p className="text-surface-400 mb-4">
-                  Already have a resume? Upload it and we'll analyze and enhance it.
+                  Already have a resume? Upload it and we&apos;ll analyze and enhance it.
                 </p>
                 <span className="inline-flex items-center gap-2 text-brand-400 font-medium">
                   Upload PDF/Word <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
@@ -478,7 +466,6 @@ export default function Home() {
               </button>
             </div>
 
-            {/* How it works */}
             <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
               <div className="text-center">
                 <div className="w-12 h-12 rounded-full bg-surface-800 flex items-center justify-center mx-auto mb-4 text-xl font-bold text-brand-400">1</div>
@@ -499,10 +486,8 @@ export default function Home() {
           </div>
         )}
 
-        {/* QUESTIONNAIRE */}
         {step === 'questionnaire' && (
           <div className="max-w-2xl mx-auto animate-fade-in">
-            {/* Progress */}
             <div className="mb-8">
               <div className="flex justify-between text-sm text-surface-400 mb-2">
                 <span>{questionSections[questionStep].title}</span>
@@ -513,10 +498,8 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Question Content */}
             <div className="bg-surface-900/50 border border-surface-800 rounded-2xl p-8">
               
-              {/* Step 0: Background */}
               {questionStep === 0 && (
                 <div className="space-y-6 animate-fade-in">
                   <h2 className="font-display text-2xl font-bold mb-6">Tell us about your background</h2>
@@ -570,7 +553,6 @@ export default function Home() {
                 </div>
               )}
 
-              {/* Step 1: Specializations */}
               {questionStep === 1 && (
                 <div className="animate-fade-in">
                   <h2 className="font-display text-2xl font-bold mb-2">What units or specializations?</h2>
@@ -609,7 +591,6 @@ export default function Home() {
                 </div>
               )}
 
-              {/* Step 2: Daily Duties */}
               {questionStep === 2 && (
                 <div className="animate-fade-in">
                   <h2 className="font-display text-2xl font-bold mb-2">Describe your daily duties</h2>
@@ -629,11 +610,10 @@ export default function Home() {
                 </div>
               )}
 
-              {/* Step 3: Certifications */}
               {questionStep === 3 && (
                 <div className="animate-fade-in">
                   <h2 className="font-display text-2xl font-bold mb-2">Certifications & Training</h2>
-                  <p className="text-surface-400 mb-6">Select any specialized training you've completed</p>
+                  <p className="text-surface-400 mb-6">Select any specialized training you&apos;ve completed</p>
                   
                   <div className="grid grid-cols-2 gap-3">
                     {CERTIFICATIONS.map((cert) => (
@@ -668,7 +648,6 @@ export default function Home() {
                 </div>
               )}
 
-              {/* Step 4: Leadership & Education */}
               {questionStep === 4 && (
                 <div className="space-y-6 animate-fade-in">
                   <h2 className="font-display text-2xl font-bold mb-6">Leadership & Education</h2>
@@ -699,16 +678,15 @@ export default function Home() {
                       <option value="">Select...</option>
                       <option value="High School">High School / GED</option>
                       <option value="Some College">Some College</option>
-                      <option value="Associates">Associate's Degree</option>
-                      <option value="Bachelors">Bachelor's Degree</option>
-                      <option value="Masters">Master's Degree</option>
+                      <option value="Associates">Associate&apos;s Degree</option>
+                      <option value="Bachelors">Bachelor&apos;s Degree</option>
+                      <option value="Masters">Master&apos;s Degree</option>
                       <option value="Doctorate">Doctorate / JD</option>
                     </select>
                   </div>
                 </div>
               )}
 
-              {/* Step 5: Goals */}
               {questionStep === 5 && (
                 <div className="space-y-6 animate-fade-in">
                   <h2 className="font-display text-2xl font-bold mb-6">Your Career Goals</h2>
@@ -760,7 +738,6 @@ export default function Home() {
                 </div>
               )}
 
-              {/* Step 6: Preferences */}
               {questionStep === 6 && (
                 <div className="space-y-6 animate-fade-in">
                   <h2 className="font-display text-2xl font-bold mb-6">Final Details</h2>
@@ -794,7 +771,6 @@ export default function Home() {
                 </div>
               )}
 
-              {/* Navigation Buttons */}
               <div className="flex justify-between mt-8 pt-6 border-t border-surface-800">
                 {questionStep > 0 ? (
                   <button
@@ -836,7 +812,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* UPLOAD RESUME */}
         {step === 'upload' && (
           <div className="max-w-2xl mx-auto animate-fade-in">
             <button
@@ -849,7 +824,7 @@ export default function Home() {
 
             <div className="text-center mb-8">
               <h1 className="font-display text-3xl font-bold mb-3">Upload Your Resume</h1>
-              <p className="text-surface-400">We'll analyze it and translate your LE experience into corporate language</p>
+              <p className="text-surface-400">We&apos;ll analyze it and translate your LE experience into corporate language</p>
             </div>
 
             <div
@@ -890,7 +865,7 @@ export default function Home() {
 
             <div className="mt-8 p-4 bg-surface-900/50 border border-surface-800 rounded-xl">
               <p className="text-surface-400 text-sm">
-                <strong className="text-white">Don't have a resume?</strong> No problem — {' '}
+                <strong className="text-white">Don&apos;t have a resume?</strong> No problem — {' '}
                 <button onClick={() => setStep('questionnaire')} className="text-brand-400 hover:underline">
                   answer a few questions instead
                 </button>
@@ -899,16 +874,14 @@ export default function Home() {
           </div>
         )}
 
-        {/* PROFILE - Translated Experience */}
         {step === 'profile' && translatedProfile && (
           <div className="animate-fade-in">
             <div className="mb-8">
               <h2 className="font-display text-3xl font-bold mb-2">Your Translated Profile</h2>
-              <p className="text-surface-400">Here's how your experience translates to the private sector</p>
+              <p className="text-surface-400">Here&apos;s how your experience translates to the private sector</p>
             </div>
 
             <div className="grid lg:grid-cols-3 gap-6 mb-12">
-              {/* Summary */}
               <div className="lg:col-span-2 bg-surface-900/50 border border-surface-800 rounded-2xl p-6">
                 <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
                   <Award className="w-5 h-5 text-brand-400" />
@@ -917,7 +890,6 @@ export default function Home() {
                 <p className="text-surface-300 leading-relaxed">{translatedProfile.summary}</p>
               </div>
 
-              {/* Target Roles */}
               <div className="bg-surface-900/50 border border-surface-800 rounded-2xl p-6">
                 <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
                   <Briefcase className="w-5 h-5 text-brand-400" />
@@ -934,7 +906,6 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Skills Translation */}
             <div className="bg-surface-900/50 border border-surface-800 rounded-2xl p-6 mb-12">
               <h3 className="font-semibold text-lg mb-6 flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-brand-400" />
@@ -957,7 +928,6 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Keywords */}
             <div className="mb-12">
               <h3 className="font-semibold text-lg mb-4">Keywords for Your Resume</h3>
               <div className="flex flex-wrap gap-2">
@@ -969,7 +939,6 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Continue to Jobs */}
             <div className="flex justify-center">
               <button
                 onClick={() => setStep('jobs')}
@@ -982,7 +951,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* JOBS LIST */}
         {step === 'jobs' && (
           <div className="animate-fade-in">
             <button
@@ -998,7 +966,6 @@ export default function Home() {
               <p className="text-surface-400">Found {jobs.length} positions that match your experience</p>
             </div>
 
-            {/* Premium Banner */}
             {!isPremium && (
               <div className="mb-8 p-6 bg-gradient-to-r from-brand-500/20 to-gold-500/20 border border-brand-500/30 rounded-2xl">
                 <div className="flex items-center justify-between flex-wrap gap-4">
@@ -1016,7 +983,6 @@ export default function Home() {
               </div>
             )}
 
-            {/* Results header */}
             <div className="flex items-center justify-between mb-4">
               <div className="text-surface-400">
                 Found <span className="text-white font-semibold">{jobs.length}</span> matching positions
@@ -1108,7 +1074,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* TAILOR - Premium Feature */}
         {step === 'tailor' && selectedJob && tailoringResult && (
           <div className="animate-fade-in">
             <button
@@ -1120,7 +1085,6 @@ export default function Home() {
             </button>
 
             <div className="grid lg:grid-cols-2 gap-8">
-              {/* Job Details */}
               <div className="bg-surface-900/50 border border-surface-800 rounded-2xl p-6">
                 <div className="flex items-start justify-between mb-4">
                   <div>
@@ -1158,7 +1122,6 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* AI Suggestions */}
               <div className="space-y-6">
                 <div className="bg-gradient-to-br from-brand-500/20 to-brand-600/10 border border-brand-500/30 rounded-2xl p-6">
                   <div className="flex items-center gap-3 mb-4">
@@ -1243,7 +1206,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* Premium Modal - when non-premium user clicks job */}
         {!isPremium && selectedJob && step === 'jobs' && (
           <div className="fixed inset-0 bg-surface-950/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div className="bg-surface-900 border border-surface-700 rounded-2xl p-8 max-w-md animate-fade-in">
@@ -1252,7 +1214,7 @@ export default function Home() {
                   <Lock className="w-8 h-8 text-brand-400" />
                 </div>
                 <h3 className="font-display text-2xl font-bold mb-2">Unlock AI Tailoring</h3>
-                <p className="text-surface-400">Get personalized resume suggestions for "{selectedJob.title}"</p>
+                <p className="text-surface-400">Get personalized resume suggestions for &quot;{selectedJob.title}&quot;</p>
               </div>
 
               <ul className="space-y-3 mb-8">

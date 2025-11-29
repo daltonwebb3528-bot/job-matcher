@@ -59,7 +59,6 @@ CRITICAL FOR searchTerms:
 
 Respond ONLY with valid JSON.`
     } else {
-      // From resume upload
       profilePrompt = `You are an expert career counselor. Analyze this resume and create search terms that will find EXACTLY matching jobs.
 
 RESUME DATA:
@@ -85,36 +84,11 @@ Create a response in this exact JSON format:
 
 CRITICAL INSTRUCTIONS FOR searchTerms - THIS IS THE MOST IMPORTANT PART:
 
-1. EXTRACT EXACT JOB TITLES from the resume:
-   - If they were "Director of RTCC Strategy" → include "RTCC director", "crime center director", "real time crime"
-   - If they were "Product Director" → include "product director", "director of product", "product manager"
-   - If they were "Deputy Director" → include "deputy director", "assistant director"
-   - If they were "Police Sergeant" → include "police sergeant", "sergeant"
-
-2. EXTRACT UNIQUE INDUSTRY TERMS:
-   - "Real time crime center" or "RTCC" → include "real time crime", "RTCC", "crime center"
-   - "Fusion center" → include "fusion center", "intelligence center"
-   - Specific technologies or platforms → include those terms
-
-3. EXTRACT SKILLS THAT MAP TO JOB SEARCHES:
-   - "product development" → "product manager", "product director"
-   - "go-to-market strategies" → "GTM manager", "marketing director"
-   - "podcast host" → "content creator", "media producer", "podcast producer"
-   - "public speaking" → "communications director", "public affairs"
-   - "sales support" → "sales manager", "business development"
-
-4. INCLUDE BOTH LATERAL AND GROWTH ROLES:
-   - If they're a Director, search "director" roles but also "VP" and "senior manager"
-   - If they're a Sergeant, search "sergeant" but also "supervisor" and "manager"
-
-5. KEEP EACH TERM SIMPLE (1-3 words):
-   GOOD: "product director", "RTCC director", "crime center", "fusion center", "sales director"
-   BAD: "Director of Real Time Crime Center Strategy and Operations"
-
-6. For govSearchTerms, include:
-   - Their exact LE rank: "police sergeant", "deputy director"
-   - Related government roles: "program analyst", "intelligence analyst"
-   - Similar LE positions: "crime analyst", "fusion center"
+1. EXTRACT EXACT JOB TITLES from the resume
+2. EXTRACT UNIQUE INDUSTRY TERMS
+3. EXTRACT SKILLS THAT MAP TO JOB SEARCHES
+4. INCLUDE BOTH LATERAL AND GROWTH ROLES
+5. KEEP EACH TERM SIMPLE (1-3 words)
 
 The goal is to find jobs that EXACTLY match their experience, not generic roles.
 
@@ -143,7 +117,6 @@ Respond ONLY with valid JSON.`
         throw new Error('No JSON found')
       }
     } catch (e) {
-      // Fallback
       result = {
         summary: "Dedicated professional with extensive experience in leadership, operations, and strategic planning.",
         translatedSkills: [
