@@ -1046,14 +1046,14 @@ export default function Home() {
                 <div
                   key={job.id}
                   className={`p-6 bg-surface-900/50 border rounded-2xl hover:border-surface-600 transition-all cursor-pointer group animate-slide-up ${
-                    job.matchScore >= 85 
+                    (job.matchScore ?? 0) >= 85 
                       ? 'border-green-500/50 ring-1 ring-green-500/30 bg-green-500/5' 
                       : 'border-surface-800'
                   }`}
                   style={{ animationDelay: `${index * 50}ms` }}
                   onClick={() => handleJobSelect(job)}
                 >
-                  {job.matchScore >= 85 && (
+                  {(job.matchScore ?? 0) >= 85 && (
                     <div className="flex items-center gap-2 mb-3 text-green-400 text-sm font-semibold">
                       <span className="flex h-2 w-2 relative">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
@@ -1068,15 +1068,15 @@ export default function Home() {
                         <h3 className="font-semibold text-lg group-hover:text-brand-400 transition-colors">{job.title}</h3>
                         {job.matchScore && (
                           <span className={`px-2 py-0.5 text-xs font-bold rounded-full ${
-                            job.matchScore >= 85 
+                            (job.matchScore ?? 0) >= 85 
                               ? 'bg-green-500/30 text-green-300 ring-2 ring-green-500/50' 
-                              : job.matchScore >= 70 
+                              : (job.matchScore ?? 0) >= 70 
                               ? 'bg-green-500/20 text-green-400' 
-                              : job.matchScore >= 50 
+                              : (job.matchScore ?? 0) >= 50 
                               ? 'bg-yellow-500/20 text-yellow-400' 
                               : 'bg-red-500/20 text-red-400'
                           }`}>
-                            {job.matchScore >= 85 ? '🔥 ' : ''}{job.matchScore}% match
+                            {(job.matchScore ?? 0) >= 85 ? '🔥 ' : ''}{job.matchScore}% match
                           </span>
                         )}
                       </div>
