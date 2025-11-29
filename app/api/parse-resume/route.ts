@@ -1,343 +1,191 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-interface AdzunaJob {
-  id: string
-  title: string
-  company: { display_name: string }
-  location: { display_name: string }
-  description: string
-  salary_min?: number
-  salary_max?: number
-  created: string
-  redirect_url: string
-}
-
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { skills, targetRoles, keywords, searchTerms, govSearchTerms, location } = body
+    // Handle FormData upload
+    const formData = await request.formData()
+    const file = formData.get('file') as File
     
-    console.log('Search request received')
-    console.log('Skills:', skills)
-    console.log('Target roles:', targetRoles)
-    console.log('Private sector search terms:', searchTerms)
-    console.log('Government search terms:', govSearchTerms)
+    if (!file) {
+      return NextResponse.json({ error: 'No file provided' }, { status: 400 })
+    }
+
+    console.log('Processing file:', file.name, 'Type:', file.type, 'Size:', file.size)
     
-    // Combine private sector and government search terms
-    const privateTerms = searchTerms && searchTerms.length > 0 
-      ? searchTerms 
-      : (targetRoles || ['program manager', 'operations manager'])
+    const bytes = await file.arrayBuffer()
+    const buffer = Buffer.from(bytes)
     
-    const govTerms = govSearchTerms && govSearchTerms.length > 0
-      ? govSearchTerms
-      : []
+    let text = ''
     
-    // Use MORE search terms to get diverse results
-    const allTerms = [...privateTerms.slice(0, 15), ...govTerms.slice(0, 8)]
-    
-    console.log('Combined search terms:', allTerms)
-    
-    const allJobs: any[] = []
-    const seenIds = new Set<string>()
-    
-    // Search for EACH term separately to get diverse results
-    // Increased to 20 different searches to get more results
-    for (const term of allTerms.slice(0, 20)) {
+    // Handle PDF files
+    if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
       try {
-        const jobs = await searchJobs(term, location)
-        console.log(`Search for "${term}" returned ${jobs.length} jobs`)
-        
-        // Add jobs we haven't seen yet
-        for (const job of jobs) {
-          if (!seenIds.has(job.id)) {
-            seenIds.add(job.id)
-            // Calculate match score based on all criteria
-            job.matchScore = calculateMatchScore(job.title, job.description, skills, targetRoles, keywords, term)
-            allJobs.push(job)
-          }
-        }
-        
-        // Stop early if we've hit our target
-        if (allJobs.length >= 150) break;
-      } catch (termError) {
-        console.error(`Error searching for term "${term}":`, termError)
-        // Continue with next term
-        continue
+        // Dynamic import for pdf-parse
+        const pdfParse = (await import('pdf-parse')).default
+        const data = await pdfParse(buffer)
+        text = data.text
+        console.log('PDF text extracted, length:', text.length)
+      } catch (pdfError) {
+        console.error('PDF parsing error:', pdfError)
+        return NextResponse.json({ 
+          error: 'Failed to parse PDF. The file may be scanned or image-based.' 
+        }, { status: 500 })
       }
     }
-    
-    console.log('Total unique jobs found:', allJobs.length)
-    
-    // If no results, use mock data
-    if (allJobs.length === 0) {
-      console.log('No API results, using mock data')
-      return NextResponse.json({
-        jobs: getMockJobs(skills, targetRoles, keywords)
-      })
+    // Handle Word documents (.docx)
+    else if (
+      file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+      file.name.toLowerCase().endsWith('.docx')
+    ) {
+      try {
+        const mammoth = await import('mammoth')
+        const result = await mammoth.extractRawText({ buffer })
+        text = result.value
+        console.log('DOCX text extracted, length:', text.length)
+      } catch (docxError) {
+        console.error('DOCX parsing error:', docxError)
+        return NextResponse.json({ error: 'Failed to parse Word document' }, { status: 500 })
+      }
     }
-    
-    // Sort by match score
-    allJobs.sort((a, b) => b.matchScore - a.matchScore)
+    // Handle older Word documents (.doc)
+    else if (
+      file.type === 'application/msword' ||
+      file.name.toLowerCase().endsWith('.doc')
+    ) {
+      try {
+        const mammoth = await import('mammoth')
+        const result = await mammoth.extractRawText({ buffer })
+        text = result.value
+        console.log('DOC text extracted, length:', text.length)
+      } catch (docError) {
+        console.error('DOC parsing error:', docError)
+        return NextResponse.json({ 
+          error: 'Failed to parse Word document. Try saving as .docx' 
+        }, { status: 500 })
+      }
+    }
+    // Handle plain text
+    else if (file.type === 'text/plain' || file.name.toLowerCase().endsWith('.txt')) {
+      text = buffer.toString('utf-8')
+      console.log('Text file read, length:', text.length)
+    }
+    else {
+      return NextResponse.json({ 
+        error: `Unsupported file type: ${file.type}. Please upload a PDF or Word document.` 
+      }, { status: 400 })
+    }
 
-    // Return top 100 jobs
-    return NextResponse.json({ jobs: allJobs.slice(0, 100) })
+    if (!text || text.trim().length === 0) {
+      return NextResponse.json({ 
+        error: 'Could not extract text from file. The file may be empty or scanned.' 
+      }, { status: 400 })
+    }
+
+    // Extract structured data from the resume text
+    const resumeData = extractResumeData(text)
+    
+    console.log('Resume data extracted:', {
+      skills: resumeData.skills.length,
+      experience: resumeData.experience.length,
+      education: resumeData.education.length,
+      textLength: resumeData.text.length
+    })
+
+    return NextResponse.json(resumeData)
 
   } catch (error) {
-    console.error('Error searching jobs:', error)
-    return NextResponse.json({ error: 'Failed to search jobs' }, { status: 500 })
+    console.error('Error parsing resume:', error)
+    return NextResponse.json({ 
+      error: 'Failed to parse resume. Please try a different file format.' 
+    }, { status: 500 })
   }
 }
 
-async function searchJobs(searchTerm: string, location: string): Promise<any[]> {
-  const appId = process.env.ADZUNA_APP_ID
-  const appKey = process.env.ADZUNA_APP_KEY
+function extractResumeData(text: string): {
+  text: string
+  skills: string[]
+  experience: string[]
+  education: string[]
+} {
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0)
   
-  if (!appId || !appKey) {
-    console.log('Job API: Missing API keys')
-    return []
-  }
-
-  try {
-    const country = 'us'
-    // Increased to 20 results per search (up from 15)
-    let url = `https://api.adzuna.com/v1/api/jobs/${country}/search/1?app_id=${appId}&app_key=${appKey}&results_per_page=20&what=${encodeURIComponent(searchTerm)}&content-type=application/json`
-    
-    if (location && location.trim() && location.toLowerCase() !== 'remote') {
-      url += `&where=${encodeURIComponent(location)}`
-    }
-    
-    console.log(`Fetching: ${url.replace(appId, 'XXX').replace(appKey, 'XXX')}`)
-    
-    const response = await fetch(url)
-    
-    if (!response.ok) {
-      console.error(`Job search API error for "${searchTerm}":`, response.status, response.statusText)
-      const errorText = await response.text()
-      console.error('Error response:', errorText)
-      return []
-    }
-
-    const contentType = response.headers.get('content-type')
-    if (!contentType || !contentType.includes('application/json')) {
-      console.error('Response is not JSON:', contentType)
-      const text = await response.text()
-      console.error('Response text:', text.slice(0, 200))
-      return []
-    }
-
-    const data = await response.json()
-    
-    if (!data.results) {
-      console.log('No results in response for:', searchTerm)
-      return []
-    }
-    
-    return data.results.map((job: AdzunaJob) => ({
-      id: job.id,
-      title: job.title,
-      company: job.company?.display_name || 'Company Confidential',
-      location: job.location?.display_name || 'Location not specified',
-      description: job.description,
-      salary_min: job.salary_min,
-      salary_max: job.salary_max,
-      created: job.created,
-      redirect_url: job.redirect_url,
-      matchedTerm: searchTerm
-    }))
-  } catch (error) {
-    console.error(`Job search error for "${searchTerm}":`, error)
-    return []
-  }
-}
-
-function calculateMatchScore(
-  title: string, 
-  description: string, 
-  skills: string[], 
-  targetRoles: string[], 
-  keywords: string[],
-  matchedTerm: string
-): number {
-  const jobText = `${title} ${description}`.toLowerCase()
-  const titleLower = title.toLowerCase()
-  const matchedTermLower = matchedTerm.toLowerCase()
-  const descriptionLower = description.toLowerCase()
-  let score = 20 // Lower base score to allow more differentiation
+  const skills: string[] = []
+  const experience: string[] = []
+  const education: string[] = []
   
-  // EXACT title match with search term = huge boost (90%+ match)
-  if (titleLower === matchedTermLower) {
-    score += 50
-  } else if (titleLower.includes(matchedTermLower)) {
-    score += 45
-  } else {
-    // Partial match - check if words overlap
-    const termWords = matchedTermLower.split(/\s+/)
-    const titleWords = titleLower.split(/\s+/)
-    let wordMatches = 0
-    for (const termWord of termWords) {
-      if (termWord.length > 2 && titleWords.some(tw => tw.includes(termWord) || termWord.includes(tw))) {
-        wordMatches++
+  let currentSection = ''
+  
+  // Common section headers
+  const skillHeaders = ['skills', 'technical skills', 'core competencies', 'competencies', 'expertise', 'qualifications', 'certifications']
+  const experienceHeaders = ['experience', 'work experience', 'professional experience', 'employment', 'work history', 'career history']
+  const educationHeaders = ['education', 'academic', 'degrees', 'training', 'certifications and training']
+  
+  for (const line of lines) {
+    const lineLower = line.toLowerCase()
+    
+    // Detect section headers
+    if (skillHeaders.some(h => lineLower.includes(h) && line.length < 50)) {
+      currentSection = 'skills'
+      continue
+    }
+    if (experienceHeaders.some(h => lineLower.includes(h) && line.length < 50)) {
+      currentSection = 'experience'
+      continue
+    }
+    if (educationHeaders.some(h => lineLower.includes(h) && line.length < 50)) {
+      currentSection = 'education'
+      continue
+    }
+    
+    // Add content to appropriate section
+    if (currentSection === 'skills' && line.length > 2 && line.length < 200) {
+      if (line.includes(',')) {
+        skills.push(...line.split(',').map(s => s.trim()).filter(s => s.length > 1))
+      } else if (line.includes('•') || line.includes('·') || line.includes('-')) {
+        skills.push(line.replace(/^[•·\-\*]\s*/, '').trim())
+      } else {
+        skills.push(line)
       }
     }
-    if (wordMatches > 0) {
-      score += wordMatches * 15
+    else if (currentSection === 'experience' && line.length > 10) {
+      experience.push(line)
+    }
+    else if (currentSection === 'education' && line.length > 5) {
+      education.push(line)
     }
   }
   
-  // Target role matches in title (strong signal)
-  let roleMatchCount = 0
-  for (const role of (targetRoles || [])) {
-    const roleLower = role.toLowerCase()
-    const roleWords = roleLower.split(/\s+/).filter(w => w.length > 3)
-    for (const word of roleWords) {
-      if (titleLower.includes(word)) {
-        roleMatchCount++
-        score += 8 // Higher weight for role matches
-      }
-      if (descriptionLower.includes(word)) {
-        roleMatchCount++
-        score += 2 // Some credit for description matches
+  // If no sections were detected, try to extract skills from the full text
+  if (skills.length === 0) {
+    const commonSkills = [
+      'leadership', 'management', 'communication', 'investigation', 'analysis',
+      'report writing', 'training', 'supervision', 'crisis management', 'public speaking',
+      'project management', 'team building', 'problem solving', 'decision making',
+      'conflict resolution', 'negotiation', 'risk assessment', 'compliance',
+      'microsoft office', 'excel', 'word', 'powerpoint', 'database', 'research'
+    ]
+    
+    const textLower = text.toLowerCase()
+    for (const skill of commonSkills) {
+      if (textLower.includes(skill)) {
+        skills.push(skill)
       }
     }
   }
   
-  // Keyword matches in description (medium signal)
-  let keywordMatches = 0
-  for (const keyword of (keywords || [])) {
-    if (keyword.length > 3) {
-      if (titleLower.includes(keyword.toLowerCase())) {
-        keywordMatches++
-        score += 3 // Higher weight for title keywords
-      } else if (descriptionLower.includes(keyword.toLowerCase())) {
-        keywordMatches++
-        score += 1.5 // Lower weight for description keywords
-      }
-    }
+  // Extract any bullet points as potential experience items
+  if (experience.length === 0) {
+    const bulletLines = lines.filter(l => 
+      (l.startsWith('•') || l.startsWith('-') || l.startsWith('*') || /^\d+[\.\)]/.test(l)) &&
+      l.length > 20
+    )
+    experience.push(...bulletLines.slice(0, 15).map(l => l.replace(/^[•\-\*\d\.\)]+\s*/, '')))
   }
   
-  // Skill matches (lighter signal)
-  let skillMatches = 0
-  for (const skill of (skills || [])) {
-    if (skill.length > 3) {
-      if (titleLower.includes(skill.toLowerCase())) {
-        skillMatches++
-        score += 2
-      } else if (descriptionLower.includes(skill.toLowerCase())) {
-        skillMatches++
-        score += 0.5
-      }
-    }
+  return {
+    text: text.slice(0, 10000),
+    skills: [...new Set(skills)].slice(0, 30),
+    experience: experience.slice(0, 20),
+    education: education.slice(0, 10)
   }
-  
-  // Bonus for multiple term matches (indicates strong relevance)
-  const totalMatches = roleMatchCount + keywordMatches + skillMatches
-  if (totalMatches > 10) {
-    score += 10
-  } else if (totalMatches > 5) {
-    score += 5
-  }
-  
-  // Add slight randomness for variety (±2 points)
-  score += Math.floor(Math.random() * 5) - 2
-  
-  // Ensure score is within bounds
-  return Math.min(Math.max(Math.round(score), 10), 98)
-}
-
-function getMockJobs(skills: string[], targetRoles: string[], keywords: string[]): any[] {
-  const mockJobs = [
-    {
-      id: 'mock-1',
-      title: 'Program Manager',
-      company: 'Fortune 500 Company',
-      location: 'Dallas, TX',
-      description: 'Seeking an experienced program manager to lead cross-functional initiatives. Responsibilities include stakeholder management, project planning, risk assessment, and team coordination.',
-      salary_min: 95000,
-      salary_max: 130000,
-      created: new Date().toISOString(),
-      redirect_url: 'https://example.com/job/1'
-    },
-    {
-      id: 'mock-2',
-      title: 'Marketing Coordinator',
-      company: 'Growing Tech Company',
-      location: 'Remote',
-      description: 'Join our marketing team to coordinate campaigns, manage social media presence, create content, and engage with our community. Great opportunity for career changers.',
-      salary_min: 55000,
-      salary_max: 75000,
-      created: new Date().toISOString(),
-      redirect_url: 'https://example.com/job/2'
-    },
-    {
-      id: 'mock-3',
-      title: 'Operations Manager',
-      company: 'National Services Company',
-      location: 'Chicago, IL',
-      description: 'Lead operations across multiple locations. Manage teams, optimize processes, ensure compliance, and drive continuous improvement initiatives.',
-      salary_min: 85000,
-      salary_max: 115000,
-      created: new Date().toISOString(),
-      redirect_url: 'https://example.com/job/3'
-    },
-    {
-      id: 'mock-4',
-      title: 'Communications Specialist',
-      company: 'Healthcare Organization',
-      location: 'Phoenix, AZ',
-      description: 'Develop internal and external communications, manage media relations, create press releases, and coordinate public affairs activities.',
-      salary_min: 60000,
-      salary_max: 80000,
-      created: new Date().toISOString(),
-      redirect_url: 'https://example.com/job/4'
-    },
-    {
-      id: 'mock-5',
-      title: 'Training Specialist',
-      company: 'Corporate Training Solutions',
-      location: 'Austin, TX',
-      description: 'Design and deliver training programs, develop curriculum, assess learning outcomes, and coach employees on professional development.',
-      salary_min: 65000,
-      salary_max: 85000,
-      created: new Date().toISOString(),
-      redirect_url: 'https://example.com/job/5'
-    },
-    {
-      id: 'mock-6',
-      title: 'Public Affairs Specialist',
-      company: 'Government Agency',
-      location: 'Washington, DC',
-      description: 'Manage public communications, coordinate with media, develop outreach strategies, and represent the organization at community events.',
-      salary_min: 70000,
-      salary_max: 95000,
-      created: new Date().toISOString(),
-      redirect_url: 'https://example.com/job/6'
-    },
-    {
-      id: 'mock-7',
-      title: 'Security Operations Manager',
-      company: 'Enterprise Corporation',
-      location: 'Denver, CO',
-      description: 'Oversee security operations, manage team of specialists, develop policies, conduct risk assessments, and coordinate emergency response.',
-      salary_min: 90000,
-      salary_max: 120000,
-      created: new Date().toISOString(),
-      redirect_url: 'https://example.com/job/7'
-    },
-    {
-      id: 'mock-8',
-      title: 'Business Analyst',
-      company: 'Consulting Firm',
-      location: 'New York, NY',
-      description: 'Analyze business processes, gather requirements, create documentation, and work with stakeholders to implement solutions.',
-      salary_min: 75000,
-      salary_max: 100000,
-      created: new Date().toISOString(),
-      redirect_url: 'https://example.com/job/8'
-    }
-  ]
-  
-  return mockJobs.map(job => ({
-    ...job,
-    matchScore: calculateMatchScore(job.title, job.description, skills || [], targetRoles || [], keywords || [], '')
-  })).sort((a, b) => b.matchScore - a.matchScore)
 }
