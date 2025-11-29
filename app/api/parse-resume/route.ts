@@ -14,9 +14,12 @@ interface AdzunaJob {
 
 export async function POST(request: NextRequest) {
   try {
-    const { skills, targetRoles, keywords, searchTerms, govSearchTerms, location } = await request.json()
+    const body = await request.json()
+    const { skills, targetRoles, keywords, searchTerms, govSearchTerms, location } = body
     
     console.log('Search request received')
+    console.log('Skills:', skills)
+    console.log('Target roles:', targetRoles)
     console.log('Private sector search terms:', searchTerms)
     console.log('Government search terms:', govSearchTerms)
     
@@ -40,21 +43,27 @@ export async function POST(request: NextRequest) {
     // Search for EACH term separately to get diverse results
     // Increased to 20 different searches to get more results
     for (const term of allTerms.slice(0, 20)) {
-      const jobs = await searchJobs(term, location)
-      console.log(`Search for "${term}" returned ${jobs.length} jobs`)
-      
-      // Add jobs we haven't seen yet
-      for (const job of jobs) {
-        if (!seenIds.has(job.id)) {
-          seenIds.add(job.id)
-          // Calculate match score based on all criteria
-          job.matchScore = calculateMatchScore(job.title, job.description, skills, targetRoles, keywords, term)
-          allJobs.push(job)
+      try {
+        const jobs = await searchJobs(term, location)
+        console.log(`Search for "${term}" returned ${jobs.length} jobs`)
+        
+        // Add jobs we haven't seen yet
+        for (const job of jobs) {
+          if (!seenIds.has(job.id)) {
+            seenIds.add(job.id)
+            // Calculate match score based on all criteria
+            job.matchScore = calculateMatchScore(job.title, job.description, skills, targetRoles, keywords, term)
+            allJobs.push(job)
+          }
         }
+        
+        // Stop early if we've hit our target
+        if (allJobs.length >= 150) break;
+      } catch (termError) {
+        console.error(`Error searching for term "${term}":`, termError)
+        // Continue with next term
+        continue
       }
-      
-      // Stop early if we've hit our target
-      if (allJobs.length >= 150) break;
     }
     
     console.log('Total unique jobs found:', allJobs.length)
@@ -97,16 +106,29 @@ async function searchJobs(searchTerm: string, location: string): Promise<any[]> 
       url += `&where=${encodeURIComponent(location)}`
     }
     
+    console.log(`Fetching: ${url.replace(appId, 'XXX').replace(appKey, 'XXX')}`)
+    
     const response = await fetch(url)
     
     if (!response.ok) {
-      console.error('Job search API error:', response.status)
+      console.error(`Job search API error for "${searchTerm}":`, response.status, response.statusText)
+      const errorText = await response.text()
+      console.error('Error response:', errorText)
+      return []
+    }
+
+    const contentType = response.headers.get('content-type')
+    if (!contentType || !contentType.includes('application/json')) {
+      console.error('Response is not JSON:', contentType)
+      const text = await response.text()
+      console.error('Response text:', text.slice(0, 200))
       return []
     }
 
     const data = await response.json()
     
     if (!data.results) {
+      console.log('No results in response for:', searchTerm)
       return []
     }
     
@@ -123,7 +145,7 @@ async function searchJobs(searchTerm: string, location: string): Promise<any[]> 
       matchedTerm: searchTerm
     }))
   } catch (error) {
-    console.error('Job search error:', error)
+    console.error(`Job search error for "${searchTerm}":`, error)
     return []
   }
 }
