@@ -20,8 +20,8 @@ export async function POST(request: NextRequest) {
     // Handle PDF files
     if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
       try {
-        // Dynamic import for pdf-parse
-        const pdfParse = (await import('pdf-parse')).default
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const pdfParse = require('pdf-parse')
         const data = await pdfParse(buffer)
         text = data.text
         console.log('PDF text extracted, length:', text.length)
